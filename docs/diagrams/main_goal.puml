@@ -1,0 +1,25 @@
+@startmindmap main goal
+!include styling.iuml
+
+* Am I a leader <:martial_arts_uniform:>?  <<question>>
+
+left side
+ * There are a deal of java levels/frameworks
+**: Some processes should run in
+ **Leader**
+  mode;<<center>><<goal>>
+ * **Stateless** environments
+ * Some **delay** on election is allowed
+ * Private signal network
+
+right side
+ * UDP broadcasting
+ * Unique $HOSTNAME
+  * Can be used as **comparable ids**<<note>>
+ * Can periodically ping list of **ids**
+ * Compare itself with **first id**
+  * Equal -> I am a leader<<note>>
+
+!include copyright.iuml
+
+@endmindmap

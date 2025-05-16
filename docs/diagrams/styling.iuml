@@ -1,0 +1,20 @@
+<style>
+.center {
+    HorizontalAlignment center
+}
+
+mindmapDiagram {
+    .goal {
+      BackgroundColor lightpink
+    }
+    .question {
+      BackgroundColor Orange
+    }
+    .note {
+          BackgroundColor lightblue
+        }
+    .solution {
+      BackgroundColor lightgreen
+    }
+}
+</style>

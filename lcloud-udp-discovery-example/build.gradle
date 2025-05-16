@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.mtbo.lcloud'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':lcloud-udp-discovery')
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+tasks.register('runApp', JavaExec) {
+    mainClass = 'ExampleService'
+    classpath = sourceSets.main.runtimeClasspath + sourceSets.main.output
+}

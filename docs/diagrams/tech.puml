@@ -1,0 +1,40 @@
+@startmindmap tech
+!include styling.iuml
+
+* What java **framework/level** to use?  <<question>>
+left side
+ * Java 1.0
+***:<code>
+java.concurrency.Thread
+</code>;
+
+ * Java 1.5
+***:<code>
+java.concurrency.Future
+</code>;
+
+ * Java 1.8
+***:<code>
+java.concurrency.CompletableFuture
+</code>;
+
+ * Java 1.9
+***:<code>
+java.util.concurrent.Flow
+</code>;
+
+ * Reactive Streams
+***:<code>
+io.projectreactor:reactor-core:3.8.0-M3
+</code>;
+
+right side
+
+ * Kernel level can be as low as can (ex. using Thread)
+ * First realization can be **most modern**<<solution>>
+ * Down-leveling in case of performance or consumer-demand
+
+!include copyright.iuml
+
+@endmindmap
+
