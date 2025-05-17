@@ -7,6 +7,7 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Logger;
 
 public class DiscoveryClient {
 
@@ -32,12 +33,13 @@ public class DiscoveryClient {
             try {
                 var sendPacket = new DatagramPacket(sendData, sendData.length, InetAddress.getByName("255.255.255.255"), port);
                 socket.send(sendPacket);
-                logInfo(">>> Request packet sent to: 255.255.255.255 (DEFAULT)");
+                logger.finer(">>> Request packet sent to: 255.255.255.255 (DEFAULT)");
             } catch (Exception ignored) {
             }
 
             // Broadcast the message over all the network interfaces
             var interfaces = NetworkInterface.getNetworkInterfaces();
+
             while (interfaces.hasMoreElements()) {
                 var networkInterface = interfaces.nextElement();
 
@@ -58,11 +60,11 @@ public class DiscoveryClient {
                     } catch (Exception ignored) {
                     }
 
-                    logInfo(">>> Request packet sent to: " + broadcast.getHostAddress() + "; Interface: " + networkInterface.getDisplayName());
+                    logger.finer(">>> Request packet sent to: " + broadcast.getHostAddress() + "; Interface: " + networkInterface.getDisplayName());
                 }
             }
 
-            logInfo(">>> Done looping over all network interfaces. Now waiting for a reply!");
+            logger.finer(">>> Done looping over all network interfaces. Now waiting for a reply!");
 
             var result = new HashSet<String>();
 
@@ -75,20 +77,16 @@ public class DiscoveryClient {
         }
     }
 
-    private void logInfo(String ignoredS) {
-    //    System.out.println(getClass().getName() + s);
-    }
-
     private Thread getThread(DatagramSocket socket, Set<String> result) {
         result.clear();
 
         var th = new Thread(() -> {
-            var recvBuf = new byte[15000];
+            var buffer = new byte[15000];
 
             while (!Thread.interrupted()) {
                 //Wait for a response
 
-                var receivePacket = new DatagramPacket(recvBuf, recvBuf.length);
+                var receivePacket = new DatagramPacket(buffer, buffer.length);
 
                 try {
                     socket.receive(receivePacket);
@@ -96,11 +94,9 @@ public class DiscoveryClient {
                     break;
                 }
 
-                //We have a response
-                logInfo(">>> Broadcast response from server: " + receivePacket.getAddress().getHostAddress());
-
-                //Check if the message is correct
                 var message = new String(receivePacket.getData(), receivePacket.getOffset(), receivePacket.getLength());
+
+                logger.fine(">>> Broadcast response from server: " + receivePacket.getAddress().getHostAddress() + ", [" + message + "]");
 
                 if (message.startsWith("UDP_DISCOVERY_RESPONSE ")) {
                     result.add(message.substring("UDP_DISCOVERY_RESPONSE ".length()));
@@ -111,4 +107,6 @@ public class DiscoveryClient {
         th.start();
         return th;
     }
+
+    static final Logger logger = Logger.getLogger(DiscoveryClient.class.getName());
 }

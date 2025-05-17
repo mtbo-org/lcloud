@@ -1,9 +1,11 @@
 plugins {
     id 'java'
+    id 'com.github.johnrengelman.shadow' version '7.1.0'
 }
 
 group = 'org.mtbo.lcloud'
 version = '1.0-SNAPSHOT'
+mainClassName = 'ExampleService'
 
 repositories {
     mavenCentral()
@@ -22,4 +24,15 @@ test {
 tasks.register('runApp', JavaExec) {
     mainClass = 'ExampleService'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.output
+}
+
+jar {
+    manifest {
+        attributes(
+                'Main-Class': 'ExampleService'
+        )
+    }
+    into('lib') {
+        from 'libs'
+    }
 }

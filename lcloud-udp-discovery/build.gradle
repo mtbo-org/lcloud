@@ -1,5 +1,6 @@
 plugins {
-    id 'java'
+    id 'java-library'
+    id 'maven-publish'
 }
 
 group = 'org.mtbo.lcloud'
@@ -16,4 +17,82 @@ dependencies {
 
 test {
     useJUnitPlatform()
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+
+publishing {
+    repositories {
+        maven {
+            url = layout.buildDirectory.dir('staging-deploy')
+        }
+
+//        maven {
+//            name = "GitHubPackages"
+//            url = uri("https://maven.pkg.github.com/mtbo-org/lcloud")
+//            credentials {
+//                username = findProperty("gpr.user") ?: System.getenv("USERNAME")
+//                password = findProperty("gpr.token") ?: System.getenv("TOKEN")
+//            }
+//
+////            def releasesRepoUrl = layout.buildDirectory.dir('repos/releases')
+////            def snapshotsRepoUrl = layout.buildDirectory.dir('repos/snapshots')
+////            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+//
+//            uri('https://maven.pkg.github.com/mtbo-org/lcloud')
+//        }
+    }
+
+    publications {
+//        gpr(MavenPublication) {
+//            from(components.java)
+//        }
+
+        mavenJava(MavenPublication) {
+            groupId = 'org.mtbo.lcloud'
+            artifactId = 'lcloud-udp-discovery'
+
+            from components.java
+
+            pom {
+                name = 'LCloud'
+                description = 'Lightweight java implementation of cloud discovery'
+                url = 'https://github.com/mtbo-org/lcloud'
+                licenses {
+                    license {
+                        name = 'The Apache License, Version 2.0'
+                        url = 'https://github.com/mtbo-org/lcloud/blob/main/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'PROGrand'
+                        name = 'Vladimir E. Koltunov'
+                        email = 'progrand@gmail.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/mtbo-org/lcloud.git'
+                    developerConnection = 'scm:git:git@github.com:mtbo-org/lcloud.git'
+                    url = 'https://github.com/mtbo-org/lcloud'
+                }
+            }
+        }
+    }
+}
+
+//signing {
+//    useGpgCmd()
+//    sign publishing.publications.mavenJava
+//}
+
+
+javadoc {
+    if (JavaVersion.current().isJava9Compatible()) {
+        options.addBooleanOption('html5', true)
+    }
 }
