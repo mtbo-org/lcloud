@@ -1,6 +1,6 @@
 plugins {
-    id 'java-library'
     id 'maven-publish'
+    id 'java'
 }
 
 group = 'org.mtbo.lcloud'
@@ -96,3 +96,4 @@ javadoc {
         options.addBooleanOption('html5', true)
     }
 }
+

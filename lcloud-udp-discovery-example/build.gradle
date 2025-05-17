@@ -5,6 +5,8 @@ plugins {
 
 group = 'org.mtbo.lcloud'
 version = '1.0-SNAPSHOT'
+
+apply plugin: 'application'
 mainClassName = 'ExampleService'
 
 repositories {

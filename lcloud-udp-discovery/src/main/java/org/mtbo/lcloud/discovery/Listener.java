@@ -1,16 +1,15 @@
+/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
+
 package org.mtbo.lcloud.discovery;
 
-import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
-/**
- * Allows to receive packets
- */
+/** Allows to receive packets */
 public interface Listener {
-    /**
-     * Receive packets
-     *
-     * @return packet from incoming connection
-     * @throws IOException in case of incoming connection failure
-     */
-    Packet receive() throws IOException;
+  /**
+   * Receive packets
+   *
+   * @return packet from incoming connection
+   */
+  CompletableFuture<Packet> receive();
 }

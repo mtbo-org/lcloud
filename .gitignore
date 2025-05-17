@@ -37,3 +37,4 @@ fabric.properties
 build
 .idea
 *.iml
+/local.properties
