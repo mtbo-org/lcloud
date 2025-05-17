@@ -87,8 +87,6 @@ public class DiscoveryClient {
               var buffer = new byte[15000];
 
               while (!Thread.interrupted()) {
-                // Wait for a response
-
                 var receivePacket = new DatagramPacket(buffer, buffer.length);
 
                 try {

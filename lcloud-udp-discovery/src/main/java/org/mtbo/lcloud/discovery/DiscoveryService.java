@@ -2,6 +2,8 @@
 
 package org.mtbo.lcloud.discovery;
 
+import java.util.concurrent.ExecutionException;
+
 /** Packets pull-push loop thread */
 public final class DiscoveryService extends Thread {
   private final PacketSource source;
@@ -22,17 +24,32 @@ public final class DiscoveryService extends Thread {
 
   @Override
   public void run() {
-    source.process();
+
+    while (!interrupted()) {
+      try {
+        source.process().get();
+      } catch (InterruptedException e) {
+        break;
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
 
   /**
    * Break loop
    *
-   * @throws InterruptedException
    */
-  public void shutdown() throws InterruptedException {
+  public void shutdown() {
     source.close();
     processor.shutdown();
-    join();
+    interrupt();
+    if (!interrupted()) {
+        try {
+            join();
+        } catch (InterruptedException ignored) {
+
+        }
+    }
   }
 }

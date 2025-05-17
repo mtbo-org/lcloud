@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 import org.mtbo.lcloud.discovery.Connection;
 import org.mtbo.lcloud.discovery.Packet;
+import org.mtbo.lcloud.discovery.exceptions.NetworkException;
 
 /** Allows to send and receive packets using UDP connection */
 public final class UdpConnection implements Connection {
@@ -42,7 +43,7 @@ public final class UdpConnection implements Connection {
           try {
             socket.receive(packet);
           } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new NetworkException(e);
           }
 
           logger.finest(
