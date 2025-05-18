@@ -1,6 +1,7 @@
 /* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
 
 import java.net.SocketException;
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.logging.ConsoleHandler;
@@ -36,36 +37,37 @@ public class ExampleService {
     discoveryService.setDaemon(true);
     discoveryService.start();
 
-    DiscoveryClient discoveryClient = new DiscoveryClient("xService", 8888);
+    DiscoveryClient.Config config = new DiscoveryClient.Config("xService", 8888);
+    DiscoveryClient discoveryClient = new DiscoveryClient(config);
 
     discoveryClient
-        .lookup()
+        .startLookup(Duration.ofSeconds(2))
         .doOnNext(
             instances -> {
               String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
 
               System.out.println("***********************************************");
-              System.out.println("Instances Discovered:\n\n" + joined);
+              System.out.println(config.serviceName() + " instances are discovered:\n\n" + joined);
               System.out.println("***********************************************\n");
             })
         .doOnError(
             throwable -> {
-              System.out.println("Lookup Error: " + throwable.getMessage());
-                throwable.printStackTrace();
+              logger.severe("Lookup Error: " + throwable.getMessage());
+              logger.throwing(ExampleService.class.getName(), "main", throwable);
             })
         .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
         .subscribe();
 
-    Thread.sleep(5000);
+    Thread.sleep(10000);
 
     discoveryService.shutdown();
   }
 
-  //    static Logger logger = Logger.getLogger(ExampleService.class.getName());
+  static Logger logger = Logger.getLogger(ExampleService.class.getName());
 
   static {
     Handler handler = new ConsoleHandler();
-    Level level = Level.FINE;
+    Level level = Level.INFO;
     handler.setLevel(level);
     Logger logger1 = Logger.getLogger("");
     logger1.setLevel(level);
