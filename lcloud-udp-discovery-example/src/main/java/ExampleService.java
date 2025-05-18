@@ -2,7 +2,6 @@
 
 import java.net.SocketException;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
@@ -39,46 +38,37 @@ public class ExampleService {
 
     DiscoveryClient discoveryClient = new DiscoveryClient("xService", 8888);
 
-    var th = getThread(discoveryClient);
+    discoveryClient
+        .lookup()
+        .doOnNext(
+            instances -> {
+              String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
 
-    th.join(5000);
+              System.out.println("***********************************************");
+              System.out.println("Instances Discovered:\n\n" + joined);
+              System.out.println("***********************************************\n");
+            })
+        .doOnError(
+            throwable -> {
+              System.out.println("Lookup Error: " + throwable.getMessage());
+                throwable.printStackTrace();
+            })
+        .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
+        .subscribe();
 
-    th.interrupt();
+    Thread.sleep(5000);
 
     discoveryService.shutdown();
-  }
-
-  private static Thread getThread(DiscoveryClient discoveryClient) {
-    var th =
-        new Thread(
-            () -> {
-              while (true) {
-                Set<String> instances = null;
-                try {
-                  instances = discoveryClient.lookup();
-                } catch (InterruptedException | SocketException e) {
-                  break;
-                }
-
-                String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
-
-                System.out.println("***********************************************");
-                System.out.println("Instances Discovered:\n\n" + joined);
-                System.out.println("***********************************************\n");
-              }
-            });
-
-    th.start();
-    return th;
   }
 
   //    static Logger logger = Logger.getLogger(ExampleService.class.getName());
 
   static {
     Handler handler = new ConsoleHandler();
-    handler.setLevel(Level.FINE);
+    Level level = Level.FINE;
+    handler.setLevel(level);
     Logger logger1 = Logger.getLogger("");
-    logger1.setLevel(Level.FINE);
+    logger1.setLevel(level);
     logger1.addHandler(handler);
   }
 }
