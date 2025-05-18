@@ -10,8 +10,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.mtbo.lcloud.discovery.DiscoveryService;
-import org.mtbo.lcloud.discovery.udp.DiscoveryClient;
 import org.mtbo.lcloud.discovery.udp.UdpConnection;
+import org.mtbo.lcloud.discovery.udp.UdpDiscoveryClient;
 
 /**
  * Demo application
@@ -37,8 +37,8 @@ public class ExampleService {
     discoveryService.setDaemon(true);
     discoveryService.start();
 
-    DiscoveryClient.Config config = new DiscoveryClient.Config("xService", 8888);
-    DiscoveryClient discoveryClient = new DiscoveryClient(config);
+    var config = new UdpDiscoveryClient.UdpConfig("xService", 8888);
+    var discoveryClient = new UdpDiscoveryClient(config);
 
     discoveryClient
         .startLookup(Duration.ofSeconds(2))
@@ -47,7 +47,7 @@ public class ExampleService {
               String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
 
               System.out.println("***********************************************");
-              System.out.println(config.serviceName() + " instances are discovered:\n\n" + joined);
+              System.out.println(config.serviceName + " instances are discovered:\n\n" + joined);
               System.out.println("***********************************************\n");
             })
         .doOnError(
@@ -67,7 +67,7 @@ public class ExampleService {
 
   static {
     Handler handler = new ConsoleHandler();
-    Level level = Level.INFO;
+    Level level = Level.FINE;
     handler.setLevel(level);
     Logger logger1 = Logger.getLogger("");
     logger1.setLevel(level);

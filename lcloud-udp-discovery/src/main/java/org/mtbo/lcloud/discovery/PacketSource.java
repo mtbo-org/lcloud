@@ -43,7 +43,12 @@ public final class PacketSource extends SubmissionPublisher<Packet> {
                 throw (RuntimeException) throwable;
               }
             })
-        .thenAcceptAsync(lagOrDrop -> logger.finer("LAG OR DROP: " + lagOrDrop))
+        .thenAcceptAsync(
+            lagOrDrop -> {
+              if (1 != lagOrDrop) {
+                logger.finer("LAG OR DROP: " + lagOrDrop);
+              }
+            })
         .join();
   }
 
