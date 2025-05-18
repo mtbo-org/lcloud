@@ -27,7 +27,7 @@ public class UdpDiscoveryClient
 
   @Override
   protected Mono<DatagramSocket> createSocket() {
-    return Mono.fromCallable(DatagramSocket::new);
+    return Mono.fromCallable(DatagramSocket::new).publishOn(Schedulers.boundedElastic());
   }
 
   @Override

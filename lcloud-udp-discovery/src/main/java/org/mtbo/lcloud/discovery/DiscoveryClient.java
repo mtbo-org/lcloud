@@ -161,7 +161,7 @@ public abstract class DiscoveryClient<AddressType, SocketType, PacketType> {
 
     Flux<AddressSocket<AddressType, SocketType>> v =
         addresses.zipWith(
-            createSocket().publishOn(Schedulers.boundedElastic()).repeat(), AddressSocket::new);
+            createSocket().repeat(), AddressSocket::new);
 
     var sendData = ("UDP_DISCOVERY_REQUEST " + config.serviceName).getBytes();
 
