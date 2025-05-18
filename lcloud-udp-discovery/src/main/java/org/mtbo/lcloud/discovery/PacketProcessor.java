@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Flow;
 import java.util.logging.Logger;
 
+/** Process {@link Packet packets} and send responses to {@link #sender} */
 public class PacketProcessor implements Flow.Subscriber<Packet> {
   private final Sender sender;
 
@@ -15,6 +16,13 @@ public class PacketProcessor implements Flow.Subscriber<Packet> {
 
   private Flow.Subscription subscription;
 
+  /**
+   * Constructor
+   *
+   * @param instanceName service instance name
+   * @param serviceName service name
+   * @param sender downstream
+   */
   public PacketProcessor(String instanceName, String serviceName, Sender sender) {
     this.sender = sender;
 
@@ -24,6 +32,7 @@ public class PacketProcessor implements Flow.Subscriber<Packet> {
     this.sendData = ("UDP_DISCOVERY_RESPONSE " + instanceName).getBytes(StandardCharsets.UTF_8);
   }
 
+  /** Shutdown {@link #subscription} */
   public void shutdown() {
     subscription.cancel();
   }

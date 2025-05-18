@@ -52,8 +52,8 @@ public class ExampleService {
     var th =
         new Thread(
             () -> {
-              while (true) {
-                Set<String> instances = null;
+              while (!Thread.currentThread().isInterrupted()) {
+                Set<String> instances;
                 try {
                   instances = discoveryClient.lookup();
                 } catch (InterruptedException | SocketException e) {
