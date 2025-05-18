@@ -15,13 +15,20 @@ def javaProjects = [
 
 configure(javaProjects) {
 
-    version '2.0.0'
+    version '3.0.0'
     repositories {
         mavenCentral()
         if (project.version.endsWith('-SNAPSHOT')) {
             maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
             configurations.all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
         }
+    }
+
+    apply plugin: 'java-library'
+
+    dependencies {
+        implementation "io.projectreactor:reactor-core:3.8.0-M3"
+        testImplementation "io.projectreactor:reactor-test:3.8.0-M3"
     }
 
     apply plugin: 'com.diffplug.spotless'
