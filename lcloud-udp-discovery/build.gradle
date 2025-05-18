@@ -27,24 +27,24 @@ java {
 
 publishing {
     repositories {
-        maven {
-            url = layout.buildDirectory.dir('staging-deploy')
-        }
-
 //        maven {
-//            name = "GitHubPackages"
-//            url = uri("https://maven.pkg.github.com/mtbo-org/lcloud")
-//            credentials {
-//                username = findProperty("gpr.user") ?: System.getenv("USERNAME")
-//                password = findProperty("gpr.token") ?: System.getenv("TOKEN")
-//            }
-//
-////            def releasesRepoUrl = layout.buildDirectory.dir('repos/releases')
-////            def snapshotsRepoUrl = layout.buildDirectory.dir('repos/snapshots')
-////            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-//
-//            uri('https://maven.pkg.github.com/mtbo-org/lcloud')
+//            url = layout.buildDirectory.dir('staging-deploy')
 //        }
+
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/mtbo-org/lcloud")
+            credentials {
+                username = findProperty("gpr.user") ?: System.getenv("USERNAME")
+                password = findProperty("gpr.token") ?: System.getenv("TOKEN")
+            }
+
+//            def releasesRepoUrl = layout.buildDirectory.dir('repos/releases')
+//            def snapshotsRepoUrl = layout.buildDirectory.dir('repos/snapshots')
+//            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
+
+            uri('https://maven.pkg.github.com/mtbo-org/lcloud')
+        }
     }
 
     publications {

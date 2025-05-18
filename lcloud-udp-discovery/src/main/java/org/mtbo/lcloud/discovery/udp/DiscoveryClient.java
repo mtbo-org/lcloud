@@ -8,17 +8,31 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Logger;
 
+/**
+ * Simple client implementation
+ */
 public class DiscoveryClient {
 
   private final String serviceName;
 
   private final int port;
 
+  /**
+   * UDP client
+   * @param serviceName service id
+   * @param port UDP port
+   */
   public DiscoveryClient(String serviceName, int port) {
     this.serviceName = serviceName;
     this.port = port;
   }
 
+  /**
+   * Lookup service
+   * @return set of instances names
+   * @throws InterruptedException on interrupt
+   * @throws SocketException on network error
+   */
   public Set<String> lookup() throws InterruptedException, SocketException {
     try (DatagramSocket socket = new DatagramSocket()) {
       // Open a random port to send the package
