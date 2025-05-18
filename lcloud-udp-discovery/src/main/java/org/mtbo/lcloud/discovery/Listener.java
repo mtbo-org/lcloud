@@ -2,14 +2,15 @@
 
 package org.mtbo.lcloud.discovery;
 
-import java.util.concurrent.CompletableFuture;
+import reactor.core.publisher.Mono;
 
 /** Allows to receive packets */
-public interface Listener {
+public interface Listener<SocketType, PacketType> {
   /**
    * Receive packets
    *
+   * @param socket on which to receive packet
    * @return packet from incoming connection
    */
-  CompletableFuture<Packet> receive();
+  Mono<PacketType> receive(SocketType socket);
 }

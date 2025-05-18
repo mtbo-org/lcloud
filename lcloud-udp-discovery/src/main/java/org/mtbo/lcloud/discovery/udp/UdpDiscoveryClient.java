@@ -3,7 +3,6 @@
 package org.mtbo.lcloud.discovery.udp;
 
 import java.net.*;
-import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 import org.mtbo.lcloud.discovery.DiscoveryClient;
@@ -18,10 +17,10 @@ public class UdpDiscoveryClient
   /**
    * Construct client with config
    *
-   * @param config configuration, including {@link Config#serviceName service name} and {@link
-   *     UdpConfig#port}
+   * @param config configuration, including {@link UdpClientConfig#serviceName service name} and
+   *     {@link UdpClientConfig#port}
    */
-  public UdpDiscoveryClient(UdpConfig config) {
+  public UdpDiscoveryClient(UdpClientConfig config) {
     super(config);
   }
 
@@ -42,7 +41,7 @@ public class UdpDiscoveryClient
 
   @Override
   protected DatagramPacket createSendPacket(byte[] sendData, InetAddress address) {
-    return new DatagramPacket(sendData, sendData.length, address, ((UdpConfig) config).port);
+    return new DatagramPacket(sendData, sendData.length, address, ((UdpClientConfig) config).port);
   }
 
   @Override
@@ -83,10 +82,10 @@ public class UdpDiscoveryClient
     return Flux.from(
             Mono.fromCallable(() -> InetAddress.getByName("255.255.255.255"))
                 .publishOn(Schedulers.boundedElastic()))
-        .doOnNext(inetAddress -> logger.fine("get main address (REAL): " + inetAddress.toString()))
+        .doOnNext(inetAddress -> logger.finer("get main address (REAL): " + inetAddress.toString()))
         .cache()
         .doOnNext(
-            inetAddress -> logger.fine("get main address (CACHED): " + inetAddress.toString()));
+            inetAddress -> logger.finer("get main address (CACHED): " + inetAddress.toString()));
   }
 
   @Override
@@ -121,61 +120,6 @@ public class UdpDiscoveryClient
     } catch (SocketException e) {
       logger.warning("interface is not allowed to send packets: " + networkInterface.getName());
       return false;
-    }
-  }
-
-  /** {@link UdpDiscoveryClient UDP discovery client's} config */
-  public static final class UdpConfig extends Config {
-    private final int port;
-
-    /**
-     * Constructor
-     *
-     * @param serviceName unique service identifier
-     * @param clientsCount max instances list size (default to {@link Integer#MAX_VALUE})
-     * @param port UDP port
-     */
-    @SuppressWarnings("unused")
-    public UdpConfig(String serviceName, int clientsCount, int port) {
-      super(serviceName, clientsCount);
-      this.port = port;
-    }
-
-    /**
-     * Constructor with defaults
-     *
-     * @param serviceName unique service identifier
-     * @param port UDP port
-     */
-    public UdpConfig(String serviceName, int port) {
-      super(serviceName);
-      this.port = port;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o == null || getClass() != o.getClass()) return false;
-      if (!super.equals(o)) return false;
-      UdpConfig udpConfig = (UdpConfig) o;
-      return port == udpConfig.port;
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(super.hashCode(), port);
-    }
-
-    @Override
-    public String toString() {
-      return "UdpConfig{"
-          + "port="
-          + port
-          + ", serviceName='"
-          + serviceName
-          + '\''
-          + ", clientsCount="
-          + clientsCount
-          + '}';
     }
   }
 

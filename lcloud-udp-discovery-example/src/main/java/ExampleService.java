@@ -9,9 +9,7 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import org.mtbo.lcloud.discovery.DiscoveryService;
-import org.mtbo.lcloud.discovery.udp.UdpConnection;
-import org.mtbo.lcloud.discovery.udp.UdpDiscoveryClient;
+import org.mtbo.lcloud.discovery.udp.*;
 
 /**
  * Demo application
@@ -28,39 +26,43 @@ public class ExampleService {
    * @throws SocketException in case of fatal network error
    */
   public static void main(String[] args) throws InterruptedException, SocketException {
-    DiscoveryService discoveryService =
-        new DiscoveryService(
-            Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString()),
+
+    final int port = 8888;
+    var serviceConfig =
+        new UdpServiceConfig(
             "xService",
-            new UdpConnection(8888));
+            Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString()),
+            port);
+    var discoveryService = new UdpDiscoveryService(serviceConfig);
 
-    discoveryService.setDaemon(true);
-    discoveryService.start();
+    var clientConfig = new UdpClientConfig("xService", port);
+    var discoveryClient = new UdpDiscoveryClient(clientConfig);
 
-    var config = new UdpDiscoveryClient.UdpConfig("xService", 8888);
-    var discoveryClient = new UdpDiscoveryClient(config);
+    var serviceListener = discoveryService.listen(new UdpConnection(port)).subscribe();
 
-    discoveryClient
-        .startLookup(Duration.ofSeconds(2))
-        .doOnNext(
-            instances -> {
-              String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
+    var clientListener =
+        discoveryClient
+            .startLookup(Duration.ofSeconds(2))
+            .doOnNext(
+                instances -> {
+                  String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
 
-              System.out.println("***********************************************");
-              System.out.println(config.serviceName + " instances are discovered:\n\n" + joined);
-              System.out.println("***********************************************\n");
-            })
-        .doOnError(
-            throwable -> {
-              logger.severe("Lookup Error: " + throwable.getMessage());
-              logger.throwing(ExampleService.class.getName(), "main", throwable);
-            })
-        .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
-        .subscribe();
+                  System.out.println("***********************************************");
+                  System.out.println(
+                      clientConfig.serviceName + " instances are discovered:\n\n" + joined);
+                  System.out.println("***********************************************\n");
+                })
+            .doOnError(
+                throwable -> {
+                  logger.severe("Lookup Error: " + throwable.getMessage());
+                  logger.throwing(ExampleService.class.getName(), "main", throwable);
+                })
+            .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
+            .subscribe();
 
     Thread.sleep(10000);
-
-    discoveryService.shutdown();
+    clientListener.dispose();
+    serviceListener.dispose();
   }
 
   static Logger logger = Logger.getLogger(ExampleService.class.getName());

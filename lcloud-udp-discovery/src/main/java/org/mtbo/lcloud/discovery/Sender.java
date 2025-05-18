@@ -2,15 +2,16 @@
 
 package org.mtbo.lcloud.discovery;
 
-import java.util.concurrent.CompletableFuture;
+import reactor.core.publisher.Mono;
 
 /** Allows to send packets */
-public interface Sender {
+public interface Sender<SocketType, PacketType> {
   /**
-   * Send packet
+   * Send packet operator
    *
+   * @param socket on which to send packet
    * @param packet packet with data and connection parameters
-   * @return void future
+   * @return void mono
    */
-  CompletableFuture<Void> send(Packet packet);
+  Mono<Boolean> send(SocketType socket, PacketType packet);
 }
