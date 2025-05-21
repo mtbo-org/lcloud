@@ -1,5 +1,4 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 package org.mtbo.lcloud.discovery.udp;
 
 import java.util.Objects;
@@ -14,12 +13,13 @@ public final class UdpClientConfig extends ClientConfig {
    * Constructor
    *
    * @param serviceName unique service identifier
+   * @param instanceName unique instance identifier
    * @param clientsCount max instances list size (default to {@link Integer#MAX_VALUE})
    * @param port UDP port
    */
   @SuppressWarnings("unused")
-  public UdpClientConfig(String serviceName, int clientsCount, int port) {
-    super(serviceName, clientsCount);
+  public UdpClientConfig(String serviceName, String instanceName, int clientsCount, int port) {
+    super(serviceName, instanceName, clientsCount);
     this.port = port;
   }
 
@@ -27,10 +27,11 @@ public final class UdpClientConfig extends ClientConfig {
    * Constructor with defaults
    *
    * @param serviceName unique service identifier
+   * @param instanceName unique instance identifier
    * @param port UDP port
    */
-  public UdpClientConfig(String serviceName, int port) {
-    super(serviceName);
+  public UdpClientConfig(String serviceName, String instanceName, int port) {
+    super(serviceName, instanceName);
     this.port = port;
   }
 

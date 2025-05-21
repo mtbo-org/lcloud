@@ -1,2 +1,1 @@
-/* (C) $YEAR Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) $YEAR Vladimir E. (PROGrand) Koltunov (mtbo.org) */

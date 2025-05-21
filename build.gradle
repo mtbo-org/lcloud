@@ -1,8 +1,7 @@
 plugins {
     id 'java-library'
-    id 'maven-publish'
     id('com.diffplug.spotless') version "7.0.3"
-    id 'java'
+    id 'signing'
 }
 
 
@@ -11,24 +10,20 @@ def javaProjects = [
         project(":lcloud-udp-discovery-example"),
 ]
 
-
+ext {
+    reactorVersion = '3.8.0-M3'
+    junitVersion = '5.12.2'
+    mockitoVersion = '5.17.0'
+    assertjVersion = '3.27.3'
+    logbackVersion = '1.5.18'
+}
 
 configure(javaProjects) {
-
-    version '3.0.1'
-    repositories {
-        mavenCentral()
-        if (project.version.endsWith('-SNAPSHOT')) {
-            maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
-            configurations.all { resolutionStrategy.cacheChangingModulesFor 0, 'seconds' }
-        }
-    }
-
     apply plugin: 'java-library'
 
     dependencies {
-        implementation "io.projectreactor:reactor-core:3.8.0-M3"
-        testImplementation "io.projectreactor:reactor-test:3.8.0-M3"
+        implementation "io.projectreactor:reactor-core:$reactorVersion"
+        testImplementation "io.projectreactor:reactor-test:$reactorVersion"
     }
 
     apply plugin: 'com.diffplug.spotless'
@@ -48,7 +43,7 @@ configure(javaProjects) {
 
             formatAnnotations()  // fixes formatting of type annotations, see below
 
-            licenseHeaderFile project.rootDir.toString() + '/license.header.java'
+            licenseHeaderFile rootProject.rootDir.toString() + '/license.header.java'
         }
     }
 

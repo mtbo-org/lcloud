@@ -1,10 +1,14 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 package org.mtbo.lcloud.discovery;
 
 import reactor.core.publisher.Mono;
 
-/** Allows to send and receive packets */
+/**
+ * Allows to send and receive packets
+ *
+ * @param <SocketType> socket type, ex: {@link java.net.DatagramSocket DatagramSocket}
+ * @param <PacketType> socket type, ex: {@link java.net.DatagramPacket DatagramPacket}
+ */
 public interface Connection<SocketType, PacketType>
     extends Listener<SocketType, PacketType>, Sender<SocketType, PacketType> {
 

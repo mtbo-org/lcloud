@@ -1,12 +1,12 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 package org.mtbo.lcloud.discovery.udp;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
-import java.util.logging.Logger;
+import java.util.logging.Level;
 import org.mtbo.lcloud.discovery.Connection;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -14,6 +14,7 @@ import reactor.core.scheduler.Schedulers;
 public final class UdpConnection implements Connection<DatagramSocket, UdpPacket> {
 
   final int port;
+  private FileLineLogger logger = FileLineLogger.getLogger(UdpConnection.class.getName());
 
   /**
    * UDP connection
@@ -22,6 +23,13 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
    */
   public UdpConnection(int port) {
     this.port = port;
+  }
+
+  /** Utility class for coverage test. */
+  public void setupLogger() {
+    if (logger == null) {
+      logger = FileLineLogger.getLogger(UdpConnection.class.getName());
+    }
   }
 
   /** Create and bind broadcast UDP socket */
@@ -40,7 +48,11 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
 
   @Override
   public void close(DatagramSocket socket) {
-    socket.close();
+    if (socket != null) {
+      socket.close();
+    } else {
+      throw new NullPointerException("socket is null");
+    }
   }
 
   @Override
@@ -48,15 +60,28 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
 
     return Mono.fromCallable(
             () -> {
-              byte[] buffer = new byte[4096];
+              DatagramPacket packet = allocPacket();
 
-              DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-
+              FileLineLogger.pt("receive packet");
               socket.receive(packet);
               return packet;
             })
+        .doOnError(
+            throwable -> {
+              logger.finer("Error on packet receiving", throwable);
+            })
         .publishOn(Schedulers.boundedElastic())
         .map(UdpPacket::new);
+  }
+
+  /**
+   * Alloc UDP packet
+   *
+   * @return inet datagram packet
+   */
+  public DatagramPacket allocPacket() {
+    byte[] buffer = new byte[4096];
+    return new DatagramPacket(buffer, buffer.length);
   }
 
   @Override
@@ -72,17 +97,28 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
                       data.limit(),
                       packet.packet().getAddress(),
                       packet.packet().getPort());
+              if (logger.isLoggable(Level.INFO)) {
+                logger.fine(
+                    "                                                                                31 31 31 31 31 31 31 31 31 31  Sending packet to: "
+                        + packet.packet().getAddress().getHostAddress());
+              }
+
+              FileLineLogger.pt("send packet");
               socket.send(sendPacket);
-              logger.finer(
-                  ">>> Sent packet to: "
-                      + sendPacket.getAddress().getHostAddress()
-                      + ":"
-                      + packet.packet().getPort());
+
+              if (logger.isLoggable(Level.INFO)) {
+                logger.fine(
+                    "                                                                                3 3 3 3 3 3 3 3 3 3  Sent packet to: "
+                        + packet.packet().getAddress().getHostAddress());
+              }
 
               return true;
             })
-        .publishOn(Schedulers.boundedElastic());
+        //        .publishOn(Schedulers.boundedElastic())
+        .onErrorResume(
+            throwable -> {
+              logger.finer("Exception caught on 3 3 3 3 3 3 3: " + throwable, throwable);
+              return Mono.just(true);
+            });
   }
-
-  static final Logger logger = Logger.getLogger(UdpConnection.class.getName());
 }

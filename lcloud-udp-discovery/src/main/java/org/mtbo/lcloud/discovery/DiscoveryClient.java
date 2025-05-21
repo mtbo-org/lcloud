@@ -1,20 +1,38 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 package org.mtbo.lcloud.discovery;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/** Allows to request network services named by some {@link ClientConfig#serviceName serice name} */
+/**
+ * Allows to request network services named by some {@link ClientConfig#serviceName serice name}
+ *
+ * @param <AddressType> address type, ex. {@link java.net.InetAddress InetAddress}
+ * @param <SocketType> socket type, ex: {@link java.net.DatagramSocket DatagramSocket}
+ * @param <PacketType> socket type, ex: {@link java.net.DatagramPacket DatagramPacket}
+ */
 public abstract class DiscoveryClient<AddressType, SocketType extends AutoCloseable, PacketType> {
+
+  /** Socket reference counter */
+  protected static AtomicInteger clientSocketsCounter = new AtomicInteger(0);
 
   /** Configuration parameters */
   protected final ClientConfig config;
+
+  final FileLineLogger logger =
+      new FileLineLogger(Logger.getLogger(DiscoveryClient.class.getName()));
+  private final String prefix;
+  AtomicInteger callId = new AtomicInteger(0);
 
   /**
    * Construct client with config
@@ -23,39 +41,20 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
    */
   public DiscoveryClient(ClientConfig config) {
     this.config = config;
+    this.prefix = "DISCOVERY_RESPONSE " + config.serviceName + " FROM ";
   }
 
   /**
    * Periodically look for network services named by {@link ClientConfig#serviceName}
    * receiveInterval is calculated with minus 100 millis
    *
-   * @param interval delay between requests
-   * @return {@link Publisher} of service instances id's set
-   */
-  public final Flux<Set<String>> startLookup(Duration interval) {
-    Duration receiveTimeout = interval.minus(Duration.ofMillis(100));
-
-    if (receiveTimeout.isNegative()) {
-      receiveTimeout = interval;
-    }
-
-    return startLookup(interval, receiveTimeout);
-  }
-
-  /**
-   * Periodically look for network services named by {@link ClientConfig#serviceName}
-   * receiveInterval is calculated with minus 100 millis
-   *
-   * @param interval delay between requests
    * @param receiveTimeout time interval to check responses from instances
    * @return {@link Publisher} of service instances id's set
    */
-  public Flux<Set<String>> startLookup(Duration interval, Duration receiveTimeout) {
-    Flux<AddressType> mainAddresses = getMainBroadcastAddresses();
+  public Flux<Set<String>> startLookup(Duration receiveTimeout) {
 
-    return Flux.interval(interval)
-        .flatMap(unused -> lookupOnceInternal(receiveTimeout, mainAddresses))
-        .repeat();
+    Mono<AddressType> mainAddresses = getMainBroadcastAddresses();
+    return lookupInternal(receiveTimeout, mainAddresses).repeat();
   }
 
   /**
@@ -64,40 +63,48 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
    * @param receiveTimeout time interval to check responses from instances
    * @return Single or zero instance {@link Publisher} of service instances id's set
    */
-  @SuppressWarnings("unused")
   public Mono<Set<String>> lookupOnce(Duration receiveTimeout) {
-    Flux<AddressType> mainAddresses = getMainBroadcastAddresses();
+    Mono<AddressType> mainAddresses = getMainBroadcastAddresses();
 
-    return Mono.from(lookupOnceInternal(receiveTimeout, mainAddresses));
+    return Mono.from(lookupInternal(receiveTimeout, mainAddresses));
   }
 
   /**
    * Internal method reuses cached mainAddresses
    *
    * @param receiveTimeout time interval to check responses from instances
-   * @param mainAddresses cached local broadcast addresses
+   * @param address cached local broadcast addresses
    * @return Single or zero instance {@link Publisher} of service instances id's set
    */
-  private Flux<Set<String>> lookupOnceInternal(
-      Duration receiveTimeout, Flux<AddressType> mainAddresses) {
-    return Flux.from(send(mainAddresses))
+  private Flux<Set<String>> lookupInternal(Duration receiveTimeout, Mono<AddressType> address) {
+    return send(address)
         .flatMap(
-            socket ->
+            socketType ->
                 Flux.using(
-                        () -> socket,
-                        this::receive,
+                        () -> socketType,
+                        (s) -> receive(s).onErrorResume(throwable -> Mono.empty()),
                         (s) -> {
                           try {
                             s.close();
-                            logger.finer("Closed socket");
-                          } catch (Exception ignored) {
-                            logger.warning("Failed to close socket");
+
+                            if (logger.isLoggable(Level.FINER)) {
+                              logger.finer(
+                                  "CLIENT SOCKET DESTROYED: "
+                                      + clientSocketsCounter.decrementAndGet());
+                            }
+                          } catch (Throwable e) {
+                            throw new RuntimeException(e);
                           }
-                        },
-                        true)
-                    .timeout(receiveTimeout, Flux.empty()))
+                        })
+                    .timeout(receiveTimeout)
+                    .onErrorResume(throwable -> Mono.empty()))
         .bufferTimeout(config.endpointsCount, receiveTimeout)
-        .map(strings -> strings.stream().filter(s -> !s.isEmpty()).collect(Collectors.toSet()));
+        .map(
+            strings -> {
+              logger.finer("Discovered " + strings.size() + " endpoints");
+              return strings.stream().filter(str -> !str.isEmpty()).collect(Collectors.toSet());
+            })
+        .onErrorResume(throwable -> Mono.empty());
   }
 
   /**
@@ -110,31 +117,74 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
   /**
    * Send broadcast via addresses operator
    *
-   * @param mainAddresses precached addresses. May be appended with additional ones.
+   * @param mainAddress precached addresses. May be appended with additional ones.
    * @return sockets on which sending was performed. Can be used to receive responses.
    */
-  private Flux<SocketType> send(Flux<AddressType> mainAddresses) {
+  private Flux<SocketType> send(Mono<AddressType> mainAddress) {
 
-    // Try the main first
-    Flux<AddressType> addresses = mainAddresses.concatWith(getAdditionalAddresses());
+    Mono<ArrayList<AddressType>> addresses =
+        mainAddress
+            .zipWith(getAdditionalAddresses())
+            .map(
+                objects -> {
+                  var arr = new ArrayList<AddressType>();
+                  arr.add(objects.getT1());
+                  arr.addAll(objects.getT2().toList());
+                  return arr;
+                });
 
-    Flux<AddressSocket<AddressType, SocketType>> v =
-        addresses.zipWith(createSocket().repeat(), AddressSocket::new);
+    Flux<AddressSocket<AddressType, SocketType>> addressSocketFlux =
+        addresses
+            .doOnNext(
+                addressTypes ->
+                    logger.finer(
+                        "BROADCAST ADDRESSES ("
+                            + addressTypes.size()
+                            + "):\n"
+                            + addressTypes.stream()
+                                .map(AddressType::toString)
+                                .collect(Collectors.joining("\n"))))
+            .flatMapIterable(addressTypes -> addressTypes)
+            .flatMap(
+                addressType ->
+                    createSocket().map(socketType -> new AddressSocket<>(addressType, socketType)));
 
-    var sendData = ("UDP_DISCOVERY_REQUEST " + config.serviceName).getBytes();
+    if (logger.isLoggable(Level.FINER)) {
+      addressSocketFlux =
+          addressSocketFlux.doOnNext(
+              socket ->
+                  logger.finer(
+                      "CLIENT SOCKET CREATED: "
+                          + clientSocketsCounter.incrementAndGet()
+                          + " - "
+                          + socket.address()));
+    }
 
-    return v.flatMap(
-        addressWithSocket -> {
-          AddressType address = addressWithSocket.address();
-          SocketType socket = addressWithSocket.socket();
+    var sendData =
+        ("DISCOVERY_REQUEST " + config.serviceName + " FROM " + config.instanceName).getBytes();
 
-          var sendPacket = createSendPacket(sendData, address);
+    return addressSocketFlux.flatMap(
+        (pair) -> {
+          AddressType address = pair.address();
+          SocketType socket = pair.socket();
 
-          return Flux.from(
-              sendPacket(socket, sendPacket)
-                  .doOnError(throwable -> logger.warning("send error: " + throwable))
-                  .onErrorResume((throwable) -> Mono.empty())
-                  .doOnNext(o -> logger.finer(">>> Request packet sent to: " + address)));
+          logger.finer("SEND BROADCAST on " + address);
+
+          var packet = createSendPacket(sendData, address);
+
+          return sendPacket(socket, packet)
+              .doOnNext(
+                  _ ->
+                      logger.fine(
+                          "("
+                              + callId.getAndIncrement()
+                              + ") 1 1 1 1 1 1 1 1 1   Request packet sent to: "
+                              + address))
+              .onErrorResume(
+                  _ -> {
+                    logger.fine(">>>>>>>>>> ++++++++++++++++++++++++++++++++++++++++");
+                    return Mono.empty();
+                  });
         });
   }
 
@@ -160,8 +210,7 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
 
     var receivePacket = createReceivePacket();
 
-    return receivePacket(socket, receivePacket)
-        .onErrorContinue((throwable, o) -> logger.warning("receive error: " + throwable));
+    return receivePacket(socket, receivePacket);
   }
 
   /**
@@ -188,18 +237,19 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
               var message = packetMessage(receivePacket);
 
               logger.fine(
-                  ">>> Broadcast response from: "
+                  "4 4 4 4 4 4 4 4 4 4 4 4 4  Broadcast response from: "
                       + packetAddress(receivePacket)
                       + ", ["
                       + message
                       + "]");
 
-              if (message.startsWith("UDP_DISCOVERY_RESPONSE ")) {
-                return Mono.just(message.substring("UDP_DISCOVERY_RESPONSE ".length()));
+              if (message.startsWith(prefix)) {
+                return Mono.just(message.substring(prefix.length()));
               } else {
                 return Mono.empty();
               }
-            });
+            })
+        .onErrorComplete();
   }
 
   /**
@@ -223,14 +273,12 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
    *
    * @return cached local broadcast addresses
    */
-  protected abstract Flux<AddressType> getMainBroadcastAddresses();
+  protected abstract Mono<AddressType> getMainBroadcastAddresses();
 
   /**
    * Enumerate network interfaces broadcast addresses able to transmit and receive packets
    *
    * @return addresses Reactive Streams {@link Publisher}
    */
-  protected abstract Flux<AddressType> getAdditionalAddresses();
-
-  static final Logger logger = Logger.getLogger(DiscoveryClient.class.getName());
+  protected abstract Mono<Stream<AddressType>> getAdditionalAddresses();
 }

@@ -1,18 +1,20 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
-
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 package org.mtbo.lcloud.discovery.udp;
 
 import java.net.*;
-import java.util.logging.Logger;
+import java.util.Objects;
+import java.util.logging.Level;
 import java.util.stream.Stream;
 import org.mtbo.lcloud.discovery.DiscoveryClient;
-import reactor.core.publisher.Flux;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 /** UDP DiscoveryClient implementation */
 public class UdpDiscoveryClient
     extends DiscoveryClient<InetAddress, DatagramSocket, DatagramPacket> {
+
+  final FileLineLogger logger = FileLineLogger.getLogger(UdpDiscoveryClient.class.getName());
 
   /**
    * Construct client with config
@@ -33,7 +35,25 @@ public class UdpDiscoveryClient
   protected Mono<DatagramSocket> sendPacket(DatagramSocket socket, DatagramPacket sendPacket) {
     return Mono.fromCallable(
             () -> {
-              socket.send(sendPacket);
+              try {
+                if (logger.isLoggable(Level.FINEST)) {
+                  logger.finest(
+                      "client send broadcast ["
+                          + new String(
+                              sendPacket.getData(), sendPacket.getOffset(), sendPacket.getLength())
+                          + "]");
+                }
+                socket.send(sendPacket);
+              } catch (Throwable e) {
+                try {
+                  socket.close();
+                  logger.fine("Socket Closed error: " + e);
+                } catch (Throwable ex) {
+                  logger.severe("Socket Closed FATAL error: " + ex + "\n\t>>>" + e);
+                }
+
+                return null;
+              }
               return socket;
             })
         .publishOn(Schedulers.boundedElastic());
@@ -49,7 +69,18 @@ public class UdpDiscoveryClient
       DatagramSocket socket, DatagramPacket receivePacket) {
     return Mono.fromCallable(
             () -> {
-              socket.receive(receivePacket);
+              try {
+                socket.receive(receivePacket);
+              } catch (Throwable e) {
+                if (e instanceof SocketException && e.getMessage().equals("Socket closed")) {
+                  logger.finer("CLIENT SOCKET ERROR: " + e, e);
+                } else {
+                  logger.severe(
+                      "CLIENT SOCKET ERROR: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n" + e, e);
+                }
+
+                return null;
+              }
               return receivePacket;
             })
         .publishOn(Schedulers.boundedElastic());
@@ -78,23 +109,25 @@ public class UdpDiscoveryClient
    * @return cached local broadcast address
    */
   @Override
-  protected Flux<InetAddress> getMainBroadcastAddresses() {
-    return Flux.from(
-            Mono.fromCallable(() -> InetAddress.getByName("255.255.255.255"))
-                .publishOn(Schedulers.boundedElastic()))
-        .doOnNext(inetAddress -> logger.finer("get main address (REAL): " + inetAddress.toString()))
-        .cache()
-        .doOnNext(
-            inetAddress -> logger.finer("get main address (CACHED): " + inetAddress.toString()));
+  protected Mono<InetAddress> getMainBroadcastAddresses() {
+    return Mono.fromCallable(() -> InetAddress.getByName("255.255.255.255"))
+        .publishOn(Schedulers.boundedElastic())
+        .cache();
   }
 
   @Override
-  protected Flux<InetAddress> getAdditionalAddresses() {
+  protected Mono<Stream<InetAddress>> getAdditionalAddresses() {
     return getNetworkInterfaces()
-        .flatMap(Flux::fromStream)
-        .filter(this::canSend)
-        .flatMapIterable(NetworkInterface::getInterfaceAddresses)
-        .mapNotNull(InterfaceAddress::getBroadcast);
+        .map(
+            networkInterfaceStream ->
+                networkInterfaceStream
+                    .filter(this::canSend)
+                    .map(NetworkInterface::getInterfaceAddresses)
+                    .flatMap(
+                        interfaceAddresses ->
+                            interfaceAddresses.stream()
+                                .map(InterfaceAddress::getBroadcast)
+                                .filter(Objects::nonNull)));
   }
 
   /**
@@ -102,26 +135,24 @@ public class UdpDiscoveryClient
    *
    * @return network interfaces as {@link Stream}
    */
-  private Flux<Stream<NetworkInterface>> getNetworkInterfaces() {
-    return Flux.from(
-        Mono.fromCallable(NetworkInterface::networkInterfaces)
-            .publishOn(Schedulers.boundedElastic())
-            .onErrorResume(e -> Mono.just(Stream.empty())));
+  private Mono<Stream<NetworkInterface>> getNetworkInterfaces() {
+    return Mono.fromCallable(NetworkInterface::networkInterfaces)
+        .publishOn(Schedulers.boundedElastic())
+        .onErrorResume(ignored -> Mono.just(Stream.empty()));
   }
 
   /**
    * Is network interface able to send packets
    *
+   * @param networkInterface to be checked
    * @return able to send
    */
-  private boolean canSend(NetworkInterface networkInterface) {
+  protected boolean canSend(NetworkInterface networkInterface) {
     try {
       return !networkInterface.isLoopback() && networkInterface.isUp();
-    } catch (SocketException e) {
-      logger.warning("interface is not allowed to send packets: " + networkInterface.getName());
+    } catch (Throwable ignored) {
+      logger.finer("interface is not allowed to send packets: " + networkInterface);
       return false;
     }
   }
-
-  static final Logger logger = Logger.getLogger(UdpDiscoveryClient.class.getName());
 }
