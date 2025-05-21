@@ -46,7 +46,8 @@ kubectl scale deployment -n default udp-discovery-example --replicas=0
 Run locally:
 
 ```shell
-HOSTNAME="AAA" java -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true -jar build/libs/lcloud-udp-discovery-example-3.1.0-ALPHA-all.ja
+HOSTNAME="YYY" CLIENT_PORT=8892 java -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
+  -jar build/libs/lcloud-udp-discovery-example-3.1.1-ALPHA-all.jar
 ```
 
 Uninstall:

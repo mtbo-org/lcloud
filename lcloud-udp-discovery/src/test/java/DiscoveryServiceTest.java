@@ -138,7 +138,7 @@ public class DiscoveryServiceTest {
     doCallRealMethod().when(connection).allocPacket();
     doCallRealMethod()
         .when(connection)
-        .send(Mockito.any(DatagramSocket.class), Mockito.any(UdpPacket.class));
+        .sendMessage(Mockito.any(DatagramSocket.class), Mockito.any(UdpPacket.class));
 
     //////////////////////////////
 

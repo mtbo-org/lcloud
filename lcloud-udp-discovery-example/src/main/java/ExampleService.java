@@ -39,17 +39,22 @@ public class ExampleService {
    */
   public static void main(String[] args) throws InterruptedException {
 
-    final var port = 8888;
+    final var serverPort =
+        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
+
+    final var clientPort =
+        Integer.parseInt(Optional.ofNullable(System.getenv("CLIENT_PORT")).orElse("8889"));
+
     final var serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
     final var instanceName =
         Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString());
-    final var serviceConfig = new UdpServiceConfig(serviceName, instanceName, port);
+    final var serviceConfig = new UdpServiceConfig(serviceName, instanceName, serverPort);
     final var discoveryService = new UdpDiscoveryService(serviceConfig);
 
-    var clientConfig = new UdpClientConfig(serviceName, instanceName, port);
+    var clientConfig = new UdpClientConfig(serviceName, instanceName, serverPort, clientPort);
     var discoveryClient = new UdpDiscoveryClient(clientConfig);
 
-    var serviceListener = discoveryService.listen(new UdpConnection(port)).subscribe();
+    var serviceListener = discoveryService.listen(new UdpConnection(serverPort)).subscribe();
 
     var clientListener =
         discoveryClient

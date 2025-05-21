@@ -39,10 +39,10 @@ public class DiscoveryClientTest {
   @SuppressWarnings("MisorderedAssertEqualsArguments")
   @Test
   public void testConfigs() {
-    UdpClientConfig config1 = new UdpClientConfig("testService", "testInstance", 100, 8888);
-    UdpClientConfig config2 = new UdpClientConfig("testService", "testInstance", 100, 8888);
-    UdpClientConfig config21 = new UdpClientConfig("testService", "testInstance", 8889);
-    UdpClientConfig config3 = new UdpClientConfig("testService1", "testInstance", 8881);
+    UdpClientConfig config1 = new UdpClientConfig("testService", "testInstance", 100, 8888, 8889);
+    UdpClientConfig config2 = new UdpClientConfig("testService", "testInstance", 100, 8888, 8889);
+    UdpClientConfig config21 = new UdpClientConfig("testService", "testInstance", 8890, 8891);
+    UdpClientConfig config3 = new UdpClientConfig("testService1", "testInstance", 8881, 8882);
 
     assertEquals(config1, config2);
     assertNotEquals(config1, config3);
@@ -84,21 +84,24 @@ public class DiscoveryClientTest {
 
   @Test()
   public void testCreateSocket() {
-    var client = new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888));
+    var client =
+        new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888, 8889));
 
     assertInstanceOf(DatagramSocket.class, client.createSocket().block());
   }
 
   @Test
   public void testGetAdditionalAddresses() {
-    var client = new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888));
+    var client =
+        new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888, 8889));
 
     assertDoesNotThrow(client::getAdditionalAddresses);
   }
 
   @Test
   public void testCanCheckBadInterfaces() throws SocketException {
-    var client = new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888));
+    var client =
+        new ProtectedClient(new UdpClientConfig("testService", "testInstance", 8888, 8889));
 
     var badDownLoopback = Mockito.mock(NetworkInterface.class);
     doReturn(true).when(badDownLoopback).isLoopback();

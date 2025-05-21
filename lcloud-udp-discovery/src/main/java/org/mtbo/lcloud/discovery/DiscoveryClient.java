@@ -174,14 +174,14 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
 
           return sendPacket(socket, packet)
               .doOnNext(
-                  _ ->
+                  ignored ->
                       logger.fine(
                           "("
                               + callId.getAndIncrement()
                               + ") 1 1 1 1 1 1 1 1 1   Request packet sent to: "
                               + address))
               .onErrorResume(
-                  _ -> {
+                  ignored -> {
                     logger.fine(">>>>>>>>>> ++++++++++++++++++++++++++++++++++++++++");
                     return Mono.empty();
                   });

@@ -21,6 +21,9 @@ ext {
 configure(javaProjects) {
     apply plugin: 'java-library'
 
+    sourceCompatibility = 21
+    targetCompatibility = 21
+
     dependencies {
         implementation "io.projectreactor:reactor-core:$reactorVersion"
         testImplementation "io.projectreactor:reactor-test:$reactorVersion"

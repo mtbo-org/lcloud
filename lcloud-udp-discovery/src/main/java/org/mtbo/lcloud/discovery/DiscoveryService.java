@@ -112,7 +112,8 @@ public abstract class DiscoveryService<
               SocketType sendSocket = tuple.getT2();
 
               if (canAcceptMessage(packet)) {
-                return connection.send(sendSocket, packet.copyWithData(ByteBuffer.wrap(sendData)))
+                return connection.sendMessage(
+                    sendSocket, packet.copyWithData(ByteBuffer.wrap(sendData)))
 
                 /*.doOnError(
                 throwable -> {

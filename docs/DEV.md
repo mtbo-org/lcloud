@@ -3,7 +3,7 @@
 Deploy:
 
 ```shell
-./gradlew clean publish
+./gradlew clean build publish
 cd lcloud-udp-discovery
 jreleaser deploy --strict -g --git-root-search
 ```

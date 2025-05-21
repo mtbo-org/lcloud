@@ -20,7 +20,7 @@ public class UdpDiscoveryClient
    * Construct client with config
    *
    * @param config configuration, including {@link UdpClientConfig#serviceName service name} and
-   *     {@link UdpClientConfig#port}
+   *     {@link UdpClientConfig#serverPort}
    */
   public UdpDiscoveryClient(UdpClientConfig config) {
     super(config);
@@ -28,7 +28,17 @@ public class UdpDiscoveryClient
 
   @Override
   protected Mono<DatagramSocket> createSocket() {
-    return Mono.fromCallable(DatagramSocket::new).publishOn(Schedulers.boundedElastic());
+    return Mono.fromCallable(
+            () -> {
+              var datagramSocket = new DatagramSocket(null);
+              datagramSocket.setReuseAddress(true);
+              //              datagramSocket.setBroadcast(true);
+              datagramSocket.bind(
+                  new InetSocketAddress(
+                      InetAddress.getByName("0.0.0.0"), ((UdpClientConfig) config).clientPort));
+              return datagramSocket;
+            })
+        .publishOn(Schedulers.boundedElastic());
   }
 
   @Override
@@ -61,7 +71,8 @@ public class UdpDiscoveryClient
 
   @Override
   protected DatagramPacket createSendPacket(byte[] sendData, InetAddress address) {
-    return new DatagramPacket(sendData, sendData.length, address, ((UdpClientConfig) config).port);
+    return new DatagramPacket(
+        sendData, sendData.length, address, ((UdpClientConfig) config).serverPort);
   }
 
   @Override
@@ -72,7 +83,9 @@ public class UdpDiscoveryClient
               try {
                 socket.receive(receivePacket);
               } catch (Throwable e) {
-                if (e instanceof SocketException && e.getMessage().equals("Socket closed")) {
+                if (e instanceof SocketException
+                    && (e.getMessage().equals("Socket closed")
+                        || e.getMessage().equals("Closed by interrupt"))) {
                   logger.finer("CLIENT SOCKET ERROR: " + e, e);
                 } else {
                   logger.severe(

@@ -6,8 +6,11 @@ import org.mtbo.lcloud.discovery.ClientConfig;
 
 /** {@link UdpDiscoveryClient UDP discovery client's} config */
 public final class UdpClientConfig extends ClientConfig {
-  /** UDP port */
-  public final int port;
+  /** UDP server port */
+  public final int serverPort;
+
+  /** UDP client port */
+  public final int clientPort;
 
   /**
    * Constructor
@@ -15,12 +18,15 @@ public final class UdpClientConfig extends ClientConfig {
    * @param serviceName unique service identifier
    * @param instanceName unique instance identifier
    * @param clientsCount max instances list size (default to {@link Integer#MAX_VALUE})
-   * @param port UDP port
+   * @param serverPort UDP server port
+   * @param clientPort UDP client Port
    */
   @SuppressWarnings("unused")
-  public UdpClientConfig(String serviceName, String instanceName, int clientsCount, int port) {
+  public UdpClientConfig(
+      String serviceName, String instanceName, int clientsCount, int serverPort, int clientPort) {
     super(serviceName, instanceName, clientsCount);
-    this.port = port;
+    this.serverPort = serverPort;
+    this.clientPort = clientPort;
   }
 
   /**
@@ -28,11 +34,13 @@ public final class UdpClientConfig extends ClientConfig {
    *
    * @param serviceName unique service identifier
    * @param instanceName unique instance identifier
-   * @param port UDP port
+   * @param serverPort UDP server port
+   * @param clientPort UDP client port
    */
-  public UdpClientConfig(String serviceName, String instanceName, int port) {
+  public UdpClientConfig(String serviceName, String instanceName, int serverPort, int clientPort) {
     super(serviceName, instanceName);
-    this.port = port;
+    this.serverPort = serverPort;
+    this.clientPort = clientPort;
   }
 
   @Override
@@ -40,16 +48,16 @@ public final class UdpClientConfig extends ClientConfig {
     if (o == null || getClass() != o.getClass()) return false;
     if (!super.equals(o)) return false;
     UdpClientConfig udpConfig = (UdpClientConfig) o;
-    return port == udpConfig.port;
+    return serverPort == udpConfig.serverPort;
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(super.hashCode(), port);
+    return Objects.hash(super.hashCode(), serverPort, clientPort);
   }
 
   @Override
   public String toString() {
-    return "UdpConfig{" + "port=" + port + '}';
+    return "UdpConfig{" + "serverPort=" + serverPort + " clientPort=" + clientPort + '}';
   }
 }

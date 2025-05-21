@@ -17,5 +17,5 @@ public interface Sender<SocketType, PacketType> {
    * @param packet packet with data and connection parameters
    * @return void mono
    */
-  Mono<Boolean> send(SocketType socket, PacketType packet);
+  Mono<Boolean> sendMessage(SocketType socket, PacketType packet);
 }

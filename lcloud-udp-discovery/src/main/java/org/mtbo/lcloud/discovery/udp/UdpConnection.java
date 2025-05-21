@@ -3,6 +3,7 @@ package org.mtbo.lcloud.discovery.udp;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.logging.Level;
 import org.mtbo.lcloud.discovery.Connection;
@@ -40,7 +41,7 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
               var datagramSocket = new DatagramSocket(null);
               datagramSocket.setReuseAddress(true);
               datagramSocket.setBroadcast(true);
-              datagramSocket.bind(new InetSocketAddress(port));
+              datagramSocket.bind(new InetSocketAddress(InetAddress.getByName("0.0.0.0"), port));
               return datagramSocket;
             })
         .publishOn(Schedulers.boundedElastic());
@@ -85,19 +86,20 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
   }
 
   @Override
-  public Mono<Boolean> send(DatagramSocket socket, UdpPacket packet) {
+  public Mono<Boolean> sendMessage(DatagramSocket socket, UdpPacket packet) {
     return Mono.fromCallable(
             () -> {
               final var data = packet.data();
               byte[] array = data.array();
+              final int responsePort = packet.packet().getPort();
               final var sendPacket =
                   new DatagramPacket(
                       array,
                       data.arrayOffset(),
                       data.limit(),
                       packet.packet().getAddress(),
-                      packet.packet().getPort());
-              if (logger.isLoggable(Level.INFO)) {
+                      responsePort);
+              if (logger.isLoggable(Level.FINE)) {
                 logger.fine(
                     "                                                                                31 31 31 31 31 31 31 31 31 31  Sending packet to: "
                         + packet.packet().getAddress().getHostAddress());
@@ -106,7 +108,7 @@ public final class UdpConnection implements Connection<DatagramSocket, UdpPacket
               FileLineLogger.pt("send packet");
               socket.send(sendPacket);
 
-              if (logger.isLoggable(Level.INFO)) {
+              if (logger.isLoggable(Level.FINE)) {
                 logger.fine(
                     "                                                                                3 3 3 3 3 3 3 3 3 3  Sent packet to: "
                         + packet.packet().getAddress().getHostAddress());

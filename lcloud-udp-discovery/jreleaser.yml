@@ -10,7 +10,7 @@ project:
 
   inceptionYear: '2025'
   stereotype: CLI
-  version: 3.1.0-ALPHA
+  version: 3.1.1-ALPHA
   #  version: 3.1.0
   languages:
     java:
@@ -37,7 +37,7 @@ release:
   github:
     skipRelease: true
     skipTag: true
-    owner: PROGrand
+    owner: mtbo-org
     overwrite: true
     changelog:
       formatted: ALWAYS
@@ -49,7 +49,7 @@ deploy:
   active: ALWAYS
   maven:
     mavenCentral:
-      release-deloy:
+      release-deploy:
         active: RELEASE
         url: https://central.sonatype.com/api/v1/publisher
         stagingRepositories:
