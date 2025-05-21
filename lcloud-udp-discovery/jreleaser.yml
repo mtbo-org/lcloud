@@ -60,6 +60,7 @@ deploy:
         sourceJar: true
         javadocJar: true
         retryDelay: 60
+        deploymentId: 67e1e05f-104b-415f-9423-659babb03b44
 #    nexus2:
 #      snapshot-deploy:
 #        active: SNAPSHOT
