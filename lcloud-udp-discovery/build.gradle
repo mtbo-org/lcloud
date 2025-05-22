@@ -4,14 +4,18 @@ plugins {
     id 'signing'
 }
 
+apply plugin: 'me.champeau.mrjar'
+
+multiRelease {
+    targetVersions 21
+}
+
 java {
     withJavadocJar()
     withSourcesJar()
 }
 
-group = 'org.mtbo.lcloud'
-version = '3.1.2-ALPHA'
-//version = '3.1.0'
+version = '3.1.2-M1'
 
 repositories {
     mavenCentral()
@@ -22,11 +26,13 @@ configurations {
 }
 
 apply plugin: 'java-library'
-sourceCompatibility = 21
-targetCompatibility = 21
 
 
 dependencies {
+
+    compileOnly "io.projectreactor:reactor-core:$reactorVersion"
+    testImplementation "io.projectreactor:reactor-test:$reactorVersion"
+
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 
     testImplementation platform("org.junit:junit-bom:$junitVersion")
@@ -66,9 +72,6 @@ publishing {
 
     publications {
         mavenJava(MavenPublication) {
-            groupId = 'org.mtbo.lcloud'
-            artifactId = 'lcloud-udp-discovery'
-
             from components.java
 
             pom {

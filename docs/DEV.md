@@ -5,7 +5,7 @@ Deploy:
 ```shell
 ./gradlew clean build publish
 cd lcloud-udp-discovery
-jreleaser deploy --strict -g --git-root-search
+jreleaser release --strict -g --git-root-search
 ```
 
 Dry run full release:

@@ -1,5 +1,6 @@
 project:
   name: lcloud-udp-discovery
+  copyright: 2025 @ Vladimir E. Koltunov
   description: lcloud
   longDescription: Lightweight java implementation of cloud discovery
   links:
@@ -10,8 +11,8 @@ project:
 
   inceptionYear: '2025'
   stereotype: CLI
-  version: 3.1.2-ALPHA
-  #  version: 3.1.0
+  version: 3.1.2-M1
+
   languages:
     java:
       version: '21'
@@ -47,9 +48,11 @@ release:
 
 deploy:
   active: ALWAYS
+
   maven:
     mavenCentral:
       release-deploy:
+        applyMavenCentralRules: true
         active: RELEASE
         url: https://central.sonatype.com/api/v1/publisher
         stagingRepositories:

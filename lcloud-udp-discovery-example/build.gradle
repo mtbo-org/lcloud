@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'org.mtbo.lcloud'
-version = '3.1.2-ALPHA'
+version = '3.1.2-M1'
 
 apply plugin: 'application'
 mainClassName = 'ExampleService'
@@ -15,6 +15,7 @@ repositories {
 
 dependencies {
     implementation project(':lcloud-udp-discovery')
+    implementation "io.projectreactor:reactor-core:$reactorVersion"
     testImplementation platform('org.junit:junit-bom:5.10.0')
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }

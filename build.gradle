@@ -2,6 +2,8 @@ plugins {
     id 'java-library'
     id('com.diffplug.spotless') version "7.0.3"
     id 'signing'
+
+    id 'me.champeau.mrjar' version '0.1.1' apply false
 }
 
 
@@ -18,16 +20,13 @@ ext {
     logbackVersion = '1.5.18'
 }
 
-configure(javaProjects) {
+subprojects {
+    group = 'org.mtbo.lcloud'
+
     apply plugin: 'java-library'
 
     sourceCompatibility = 21
     targetCompatibility = 21
-
-    dependencies {
-        implementation "io.projectreactor:reactor-core:$reactorVersion"
-        testImplementation "io.projectreactor:reactor-test:$reactorVersion"
-    }
 
     apply plugin: 'com.diffplug.spotless'
 
@@ -52,6 +51,10 @@ configure(javaProjects) {
 
     test {
         useJUnitPlatform()
+    }
+
+    tasks.withType(GenerateModuleMetadata) {
+        enabled = false
     }
 }
 
