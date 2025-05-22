@@ -1,4 +1,4 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 
 package org.mtbo.lcloud.discovery.udp;
 
@@ -9,7 +9,7 @@ import org.mtbo.lcloud.discovery.Packet;
 /**
  * UDP packet implementation of {@link Packet}
  *
- * @param packet
+ * @param packet wrapped
  */
 public record UdpPacket(DatagramPacket packet) implements Packet<UdpPacket> {
 
@@ -23,5 +23,10 @@ public record UdpPacket(DatagramPacket packet) implements Packet<UdpPacket> {
     return new UdpPacket(
         new DatagramPacket(
             wrap.array(), wrap.arrayOffset(), wrap.limit(), packet.getAddress(), packet.getPort()));
+  }
+
+  @Override
+  public String toString() {
+    return packet.getAddress().getHostAddress();
   }
 }

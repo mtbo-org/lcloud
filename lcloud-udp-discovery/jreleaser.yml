@@ -1,0 +1,79 @@
+project:
+  name: lcloud-udp-discovery
+  description: lcloud
+  longDescription: Lightweight java implementation of cloud discovery
+  links:
+    homepage: https://github.com/mtbo-org/lcloud
+  authors:
+    - Vladimir Koltunov
+  license: APACHE-2.0
+
+  inceptionYear: '2025'
+  stereotype: CLI
+  version: 3.1.2-ALPHA
+  #  version: 3.1.0
+  languages:
+    java:
+      version: '21'
+      groupId: org.mtbo.lcloud
+      artifactId: lcloud-udp-discovery
+      mainModule: org.mtbo.lcloud.discovery
+
+signing:
+  active: ALWAYS
+  armored: true
+  verify: true
+
+distributions:
+  lcloud-udp-discovery:
+    type: SINGLE_JAR
+    artifacts:
+      - path: build/libs/{{distributionName}}-{{projectVersion}}.jar
+
+assemble:
+  active: ALWAYS
+
+release:
+  github:
+    skipRelease: true
+    skipTag: true
+    owner: mtbo-org
+    overwrite: true
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
+
+deploy:
+  active: ALWAYS
+  maven:
+    mavenCentral:
+      release-deploy:
+        active: RELEASE
+        url: https://central.sonatype.com/api/v1/publisher
+        stagingRepositories:
+          - build/staging-deploy
+        authorization: BASIC
+        sign: true
+        checksums: true
+        sourceJar: true
+        javadocJar: true
+        retryDelay: 60
+        deploymentId: 67e1e05f-104b-415f-9423-659babb03b44
+#    nexus2:
+#      snapshot-deploy:
+#        active: SNAPSHOT
+#        url: https://central.sonatype.com/repository/maven-snapshots/
+#        snapshotUrl: https://central.sonatype.com/repository/maven-snapshots/
+#        applyMavenCentralRules: true
+#        snapshotSupported: true
+#        closeRepository: true
+#        releaseRepository: true
+#        stagingRepositories:
+#          - build/staging-deploy
+#        authorization: BASIC
+#        sign: true
+#        checksums: true
+#        sourceJar: true
+#        javadocJar: true

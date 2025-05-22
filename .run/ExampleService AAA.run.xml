@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="ExampleService AAA" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="openjdk-24" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <envs>
+      <env name="HOSTNAME" value="AAA" />
+      <env name="CLIENT_PORT" value="8889" />
+    </envs>
+    <option name="MAIN_CLASS_NAME" value="ExampleService" />
+    <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />
+    <option name="VM_PARAMETERS" value="-enableassertions -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

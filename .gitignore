@@ -38,3 +38,8 @@ build
 .idea
 *.iml
 /local.properties
+/lcloud-udp-discovery/trace.log
+/htmlReport/
+*.hprof
+/logs/
+/lcloud-udp-discovery-example/logs/

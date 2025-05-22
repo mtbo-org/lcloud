@@ -1,15 +1,19 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 
-import java.net.SocketException;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Calendar;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
+import java.util.concurrent.CountDownLatch;
+import java.util.logging.LogManager;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.mtbo.lcloud.discovery.udp.*;
+import reactor.core.publisher.Mono;
+import sun.misc.Signal;
+import sun.misc.SignalHandler;
 
 /**
  * Demo application
@@ -18,61 +22,126 @@ import org.mtbo.lcloud.discovery.udp.*;
  */
 public class ExampleService {
 
+  static FileLineLogger logger;
+
+  static {
+    var logFile =
+        Optional.ofNullable(System.getProperty("java.util.logging.config.file")).orElse("");
+
+    String skipConfig =
+        Optional.ofNullable(System.getProperty("lcloud.skip.logging.config")).orElse("false");
+
+    if (logFile.isEmpty() && !skipConfig.equals("true")) {
+      try (var is =
+          ExampleService.class.getClassLoader().getResourceAsStream("logging.properties")) {
+        LogManager.getLogManager().readConfiguration(is);
+
+      } catch (Throwable e) {
+        e.printStackTrace();
+      }
+    }
+
+    var level = Optional.ofNullable(System.getProperty("org.mtbo.lcloud.discovery.level"));
+
+    level.ifPresent(
+        s -> {
+          try (var stream =
+              new ByteArrayInputStream(
+                  ("org.mtbo.lcloud.discovery.level=" + level.get())
+                      .getBytes(StandardCharsets.UTF_8))) {
+            LogManager.getLogManager()
+                .updateConfiguration(
+                    stream,
+                    s1 -> {
+                      return (o, n) -> {
+                        return n != null ? n : o;
+                      };
+                    });
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
+
+    logger = FileLineLogger.getLogger(ExampleService.class.getName());
+  }
+
+  /** Default */
+  ExampleService() {}
+
   /**
    * Main method
    *
    * @param args arguments
    * @throws InterruptedException in case of interruption
-   * @throws SocketException in case of fatal network error
    */
-  public static void main(String[] args) throws InterruptedException, SocketException {
+  public static void main(String[] args) throws InterruptedException {
 
-    final int port = 8888;
-    var serviceConfig =
-        new UdpServiceConfig(
-            "xService",
-            Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString()),
-            port);
-    var discoveryService = new UdpDiscoveryService(serviceConfig);
+    final var serverPort =
+        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
 
-    var clientConfig = new UdpClientConfig("xService", port);
+    final var clientPort =
+        Integer.parseInt(Optional.ofNullable(System.getenv("CLIENT_PORT")).orElse("8889"));
+
+    final var serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
+    final var instanceName =
+        Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString());
+    final var serviceConfig = new UdpServiceConfig(serviceName, instanceName, serverPort);
+    final var discoveryService = new UdpDiscoveryService(serviceConfig);
+
+    var clientConfig = new UdpClientConfig(serviceName, instanceName, serverPort, clientPort);
     var discoveryClient = new UdpDiscoveryClient(clientConfig);
 
-    var serviceListener = discoveryService.listen(new UdpConnection(port)).subscribe();
+    var serviceListener = discoveryService.listen(new UdpConnection(serverPort)).subscribe();
 
     var clientListener =
         discoveryClient
-            .startLookup(Duration.ofSeconds(2))
+            .startLookup(Duration.ofMillis(150))
             .doOnNext(
                 instances -> {
-                  String joined = instances.stream().sorted().collect(Collectors.joining("\n"));
-
-                  System.out.println("***********************************************");
-                  System.out.println(
-                      clientConfig.serviceName + " instances are discovered:\n\n" + joined);
-                  System.out.println("***********************************************\n");
+                  synchronized (FileLineLogger.class) {
+                    logger.info("****************************************************");
+                    logger.info(
+                        String.format(
+                            "[%1$tH:%<tM:%<tS.%<tL] %2$s instances are discovered [%3$3d]",
+                            Calendar.getInstance(), clientConfig.serviceName, instances.size()));
+                    instances.forEach(message -> logger.info(String.format("%1$-52s", message)));
+                    logger.info("****************************************************");
+                  }
                 })
             .doOnError(
                 throwable -> {
-                  logger.severe("Lookup Error: " + throwable.getMessage());
-                  logger.throwing(ExampleService.class.getName(), "main", throwable);
+                  logger.severe("Lookup Error: " + throwable, throwable);
                 })
             .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
+            .delayUntil(strings -> Mono.delay(Duration.ofMillis(50)))
             .subscribe();
 
-    Thread.sleep(10000);
-    clientListener.dispose();
-    serviceListener.dispose();
-  }
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  logger.info("Shutting down...");
 
-  static Logger logger = Logger.getLogger(ExampleService.class.getName());
+                  clientListener.dispose();
+                  serviceListener.dispose();
+                }));
 
-  static {
-    Handler handler = new ConsoleHandler();
-    Level level = Level.FINE;
-    handler.setLevel(level);
-    Logger logger1 = Logger.getLogger("");
-    logger1.setLevel(level);
-    logger1.addHandler(handler);
+    var latch = new CountDownLatch(1);
+
+    SignalHandler handler =
+        sig -> {
+          logger.info("Shutting down...");
+          clientListener.dispose();
+          serviceListener.dispose();
+          latch.countDown();
+        };
+
+    Signal.handle(new Signal("INT"), handler);
+
+    logger.info("Program started. Press Ctrl+C to test the blocker.");
+
+    latch.await();
+
+    logger.info("Bye!");
   }
 }

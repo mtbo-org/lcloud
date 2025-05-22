@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'org.mtbo.lcloud'
-version = '3.0.1-SNAPSHOT'
+version = '3.1.2-ALPHA'
 
 apply plugin: 'application'
 mainClassName = 'ExampleService'
@@ -31,8 +31,10 @@ tasks.register('runApp', JavaExec) {
 jar {
     manifest {
         attributes(
-                'Main-Class': 'ExampleService'
+                'Main-Class': 'ExampleService',
+                'Multi-Release': 'true'
         )
+
     }
     into('lib') {
         from 'libs'

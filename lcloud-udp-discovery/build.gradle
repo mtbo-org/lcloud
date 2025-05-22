@@ -1,22 +1,7 @@
 plugins {
+    id 'java-library'
     id 'maven-publish'
-    id 'java'
-}
-
-group = 'org.mtbo.lcloud'
-version = '3.0.1-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-}
-
-test {
-    useJUnitPlatform()
+    id 'signing'
 }
 
 java {
@@ -24,34 +9,62 @@ java {
     withSourcesJar()
 }
 
+group = 'org.mtbo.lcloud'
+version = '3.1.2-ALPHA'
+//version = '3.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+configurations {
+    mockitoAgent
+}
+
+apply plugin: 'java-library'
+sourceCompatibility = 21
+targetCompatibility = 21
+
+
+dependencies {
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    testImplementation platform("org.junit:junit-bom:$junitVersion")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+
+    testRuntimeOnly "ch.qos.logback:logback-classic:$logbackVersion"
+    testImplementation "org.assertj:assertj-core:$assertjVersion"
+    testImplementation("org.mockito:mockito-core:$mockitoVersion")
+    mockitoAgent("org.mockito:mockito-core:$mockitoVersion") {
+        transitive = false
+    }
+
+}
+
+tasks {
+    test {
+        jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
+    }
+}
+
+
+test {
+    useJUnitPlatform()
+}
 
 publishing {
     repositories {
-//        maven {
-//            url = layout.buildDirectory.dir('staging-deploy')
-//        }
-
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/mtbo-org/lcloud")
-            credentials {
-                username = findProperty("gpr.user") ?: System.getenv("USERNAME")
-                password = findProperty("gpr.token") ?: System.getenv("TOKEN")
-            }
-
-//            def releasesRepoUrl = layout.buildDirectory.dir('repos/releases')
-//            def snapshotsRepoUrl = layout.buildDirectory.dir('repos/snapshots')
-//            url = version.endsWith('SNAPSHOT') ? snapshotsRepoUrl : releasesRepoUrl
-
-            uri('https://maven.pkg.github.com/mtbo-org/lcloud')
+            url = layout.buildDirectory.dir('staging-deploy')
         }
     }
 
-    publications {
-//        gpr(MavenPublication) {
-//            from(components.java)
-//        }
 
+    publications {
         mavenJava(MavenPublication) {
             groupId = 'org.mtbo.lcloud'
             artifactId = 'lcloud-udp-discovery'
@@ -83,17 +96,11 @@ publishing {
             }
         }
     }
-}
 
-//signing {
-//    useGpgCmd()
-//    sign publishing.publications.mavenJava
-//}
-
-
-javadoc {
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
+    javadoc {
+        if (JavaVersion.current().isJava9Compatible()) {
+            options.addBooleanOption('html5', true)
+        }
     }
-}
 
+}

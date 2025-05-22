@@ -1,4 +1,4 @@
-/* (C) 2025 Vladimir E. Koltunov (mtbo.org) */
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 
 package org.mtbo.lcloud.discovery;
 
@@ -13,6 +13,8 @@ public abstract class ServiceConfig {
   public final String instanceName;
 
   /**
+   * Constructor
+   *
    * @param serviceName unique service identifier
    * @param instanceName this endpoint name
    */
@@ -22,21 +24,13 @@ public abstract class ServiceConfig {
   }
 
   @Override
-  public String toString() {
-    return "ServiceConfig{"
-        + "serviceName='"
-        + serviceName
-        + '\''
-        + ", instanceName='"
-        + instanceName
-        + '\''
-        + '}';
-  }
-
-  @Override
-  public boolean equals(Object o) {
-    if (o == null || getClass() != o.getClass()) return false;
-    ServiceConfig that = (ServiceConfig) o;
+  public boolean equals(Object obj) {
+    if (obj == null) {
+      return false;
+    } else if (getClass() != obj.getClass()) {
+      return false;
+    }
+    ServiceConfig that = (ServiceConfig) obj;
     return Objects.equals(serviceName, that.serviceName)
         && Objects.equals(instanceName, that.instanceName);
   }
