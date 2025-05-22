@@ -49,7 +49,7 @@ Run locally:
 HOSTNAME="YYY" CLIENT_PORT=8892 \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M1-all.jar
+    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M2-all.jar
 ```
 
 Uninstall:

@@ -4,10 +4,10 @@ package org.mtbo.lcloud.discovery;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.reactivestreams.Publisher;
@@ -49,8 +49,7 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
    * @param receiveTimeout time interval to check responses from instances
    * @return {@link Publisher} of service instances id's set
    */
-  public Flux<Set<String>> startLookup(Duration receiveTimeout) {
-
+  public Flux<HashSet<String>> startLookup(Duration receiveTimeout) {
     Mono<AddressType> mainAddresses = getMainBroadcastAddresses();
     return lookupInternal(receiveTimeout, mainAddresses).repeat();
   }
@@ -74,35 +73,44 @@ public abstract class DiscoveryClient<AddressType, SocketType extends AutoClosea
    * @param address cached local broadcast addresses
    * @return Single or zero instance {@link Publisher} of service instances id's set
    */
-  private Flux<Set<String>> lookupInternal(Duration receiveTimeout, Mono<AddressType> address) {
+  private Flux<HashSet<String>> lookupInternal(Duration receiveTimeout, Mono<AddressType> address) {
     return send(address)
-        .flatMap(
-            socketType ->
-                Flux.using(
-                        () -> socketType,
-                        (s) -> receive(s).onErrorResume(throwable -> Mono.empty()),
-                        (s) -> {
-                          try {
-                            s.close();
-
-                            if (logger.isLoggable(Level.FINER)) {
-                              logger.finer(
-                                  "CLIENT SOCKET DESTROYED: "
-                                      + clientSocketsCounter.decrementAndGet());
-                            }
-                          } catch (Throwable e) {
-                            throw new RuntimeException(e);
-                          }
-                        })
-                    .timeout(receiveTimeout)
-                    .onErrorResume(throwable -> Mono.empty()))
-        .bufferTimeout(config.endpointsCount, receiveTimeout)
+        .flatMap(socketType -> receiveOnInterface(receiveTimeout, socketType))
+        .bufferTimeout(
+            config.endpointsCount,
+            receiveTimeout,
+            HashSet::new) // Collect distinct names during time-windows
         .map(
             strings -> {
+              strings.remove("");
               logger.finer("Discovered " + strings.size() + " endpoints");
-              return strings.stream().filter(str -> !str.isEmpty()).collect(Collectors.toSet());
+              return strings;
             })
-        .onErrorResume(throwable -> Mono.empty());
+        .onErrorResume(
+            throwable -> {
+              logger.finer("Error on loop", throwable);
+              return Mono.empty();
+            });
+  }
+
+  private Flux<String> receiveOnInterface(Duration receiveTimeout, SocketType socketType) {
+    return Flux.using(
+            () -> socketType,
+            (s) -> receive(s).onErrorResume(throwable -> Mono.empty()),
+            (s) -> {
+              try {
+                s.close();
+
+                if (logger.isLoggable(Level.FINER)) {
+                  logger.finer(
+                      "CLIENT SOCKET DESTROYED: " + clientSocketsCounter.decrementAndGet());
+                }
+              } catch (Throwable e) {
+                throw new RuntimeException(e);
+              }
+            })
+        .timeout(receiveTimeout)
+        .onErrorResume(throwable -> Mono.just("")); // Return empty in case of no reply.
   }
 
   /**
