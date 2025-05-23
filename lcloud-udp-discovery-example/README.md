@@ -15,6 +15,7 @@ minikube docker-env
 
 @FOR /f "tokens=*" %i IN ('minikube -p minikube docker-env --shell cmd') DO @%i 
 docker login
+docker build -t lcloud-udp-discovery-example:latest .
 helm install udp-discovery-example udp-discovery-example
 ```
 

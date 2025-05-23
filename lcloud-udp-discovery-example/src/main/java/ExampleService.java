@@ -3,17 +3,14 @@
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Calendar;
 import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.LogManager;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
+import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
 import org.mtbo.lcloud.discovery.udp.*;
-import reactor.core.publisher.Mono;
-import sun.misc.Signal;
-import sun.misc.SignalHandler;
 
 /**
  * Demo application
@@ -74,74 +71,85 @@ public class ExampleService {
    * @param args arguments
    * @throws InterruptedException in case of interruption
    */
-  public static void main(String[] args) throws InterruptedException {
+  public static void main(String[] args) throws InterruptedException, ExecutionException {
 
-    final var serverPort =
-        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
+    String multicastAddr = System.getenv("MULTICAST_ADDR");
+    int multicastPort = Integer.parseInt(System.getenv("MULTICAST_PORT"));
 
-    final var clientPort =
-        Integer.parseInt(Optional.ofNullable(System.getenv("CLIENT_PORT")).orElse("8889"));
+    try (ExecutorService service = Executors.newFixedThreadPool(2)) {
+      service.submit(new MulticastDiscovery.MulticastPublisher(multicastAddr, multicastPort));
+      service.submit(new MulticastDiscovery.MulticastReceiver(multicastAddr, multicastPort)).get();
+    }
 
-    final var serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
-    final var instanceName =
-        Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString());
-    final var serviceConfig = new UdpServiceConfig(serviceName, instanceName, serverPort);
-    final var discoveryService = new UdpDiscoveryService(serviceConfig);
-
-    var clientConfig = new UdpClientConfig(serviceName, instanceName, serverPort, clientPort);
-    var discoveryClient = new UdpDiscoveryClient(clientConfig);
-
-    var serviceListener = discoveryService.listen(new UdpConnection(serverPort)).subscribe();
-
-    var clientListener =
-        discoveryClient
-            .startLookup(Duration.ofMillis(150))
-            .doOnNext(
-                instances -> {
-                  synchronized (FileLineLogger.class) {
-                    logger.info("****************************************************");
-                    logger.info(
-                        String.format(
-                            "[%1$tH:%<tM:%<tS.%<tL] %2$s instances are discovered [%3$3d]",
-                            Calendar.getInstance(), clientConfig.serviceName, instances.size()));
-                    instances.forEach(message -> logger.info(String.format("%1$-52s", message)));
-                    logger.info("****************************************************");
-                  }
-                })
-            .doOnError(
-                throwable -> {
-                  logger.severe("Lookup Error: " + throwable, throwable);
-                })
-            .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
-            .delayUntil(strings -> Mono.delay(Duration.ofMillis(50)))
-            .subscribe();
-
-    Runtime.getRuntime()
-        .addShutdownHook(
-            new Thread(
-                () -> {
-                  logger.info("Shutting down...");
-
-                  clientListener.dispose();
-                  serviceListener.dispose();
-                }));
-
-    var latch = new CountDownLatch(1);
-
-    SignalHandler handler =
-        sig -> {
-          logger.info("Shutting down...");
-          clientListener.dispose();
-          serviceListener.dispose();
-          latch.countDown();
-        };
-
-    Signal.handle(new Signal("INT"), handler);
-
-    logger.info("Program started. Press Ctrl+C to test the blocker.");
-
-    latch.await();
-
-    logger.info("Bye!");
+    //    final var serverPort =
+    //        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
+    //
+    //    final var clientPort =
+    //        Integer.parseInt(Optional.ofNullable(System.getenv("CLIENT_PORT")).orElse("8889"));
+    //
+    //    final var serviceName =
+    // Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
+    //    final var instanceName =
+    //        Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString());
+    //    final var serviceConfig = new UdpServiceConfig(serviceName, instanceName, serverPort);
+    //    final var discoveryService = new UdpDiscoveryService(serviceConfig);
+    //
+    //    var clientConfig = new UdpClientConfig(serviceName, instanceName, serverPort, clientPort);
+    //    var discoveryClient = new UdpDiscoveryClient(clientConfig);
+    //
+    //    var serviceListener = discoveryService.listen(new UdpConnection(serverPort)).subscribe();
+    //
+    //    var clientListener =
+    //        discoveryClient
+    //            .startLookup(Duration.ofMillis(150))
+    //            .doOnNext(
+    //                instances -> {
+    //                  synchronized (FileLineLogger.class) {
+    //                    logger.info("****************************************************");
+    //                    logger.info(
+    //                        String.format(
+    //                            "[%1$tH:%<tM:%<tS.%<tL] %2$s instances are discovered [%3$3d]",
+    //                            Calendar.getInstance(), clientConfig.serviceName,
+    // instances.size()));
+    //                    instances.forEach(message -> logger.info(String.format("%1$-52s",
+    // message)));
+    //                    logger.info("****************************************************");
+    //                  }
+    //                })
+    //            .doOnError(
+    //                throwable -> {
+    //                  logger.severe("Lookup Error: " + throwable, throwable);
+    //                })
+    //            .onErrorComplete(throwable -> !(throwable instanceof InterruptedException))
+    //            .delayUntil(strings -> Mono.delay(Duration.ofMillis(50)))
+    //            .subscribe();
+    //
+    //    Runtime.getRuntime()
+    //        .addShutdownHook(
+    //            new Thread(
+    //                () -> {
+    //                  logger.info("Shutting down...");
+    //
+    //                  clientListener.dispose();
+    //                  serviceListener.dispose();
+    //                }));
+    //
+    //    var latch = new CountDownLatch(1);
+    //
+    //    SignalHandler handler =
+    //        sig -> {
+    //          logger.info("Shutting down...");
+    //          clientListener.dispose();
+    //          serviceListener.dispose();
+    //          latch.countDown();
+    //        };
+    //
+    //    Signal.handle(new Signal("INT"), handler);
+    //
+    //    logger.info("Program started. Press Ctrl+C to test the blocker.");
+    //
+    //    latch.await();
+    //
+    //    logger.info("Bye!");
   }
 }
