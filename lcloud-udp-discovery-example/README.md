@@ -29,7 +29,7 @@ Re-apply image:
 
 ```shell
 kubectl scale deployment -n default udp-discovery-example --replicas=0
-kubectl scale deployment -n default udp-discovery-example --replicas=8
+kubectl scale deployment -n default udp-discovery-example --replicas=2
 ```
 
 Scale up:

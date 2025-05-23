@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.logging.LogManager;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
+import org.mtbo.lcloud.discovery.multicast.MulticastPublisher;
 import org.mtbo.lcloud.discovery.udp.*;
 
 /**
@@ -73,13 +74,31 @@ public class ExampleService {
    */
   public static void main(String[] args) throws InterruptedException, ExecutionException {
 
-    String multicastAddr = System.getenv("MULTICAST_ADDR");
-    int multicastPort = Integer.parseInt(System.getenv("MULTICAST_PORT"));
+    String multicastAddr = Optional.ofNullable(System.getenv("MULTICAST_ADDR")).orElse("230.0.0.0");
+    final var multicastPort =
+        Integer.parseInt(Optional.ofNullable(System.getenv("MULTICAST_PORT")).orElse("8888"));
 
-    try (ExecutorService service = Executors.newFixedThreadPool(2)) {
-      service.submit(new MulticastDiscovery.MulticastPublisher(multicastAddr, multicastPort));
-      service.submit(new MulticastDiscovery.MulticastReceiver(multicastAddr, multicastPort)).get();
+    var discovery = new MulticastDiscovery();
+
+    var subscription =
+        discovery
+            .receive(multicastAddr, multicastPort)
+            .repeat()
+            .doOnEach(System.out::println)
+            .subscribe();
+
+    ExecutorService service = Executors.newFixedThreadPool(2);
+    var p = service.submit(new MulticastPublisher(multicastAddr, multicastPort));
+
+    try {
+      System.in.read();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
     }
+
+    subscription.dispose();
+
+    p.get();
 
     //    final var serverPort =
     //        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
