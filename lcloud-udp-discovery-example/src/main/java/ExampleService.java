@@ -3,13 +3,16 @@
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.LogManager;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
+import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery.Config;
 import org.mtbo.lcloud.discovery.multicast.MulticastPublisher;
 import org.mtbo.lcloud.discovery.udp.*;
 
@@ -74,31 +77,63 @@ public class ExampleService {
    */
   public static void main(String[] args) throws InterruptedException, ExecutionException {
 
-    String multicastAddr = Optional.ofNullable(System.getenv("MULTICAST_ADDR")).orElse("230.0.0.0");
+    final String serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
+
+    final String instanceName =
+        Optional.ofNullable(System.getenv("HOSTNAME")).orElse(UUID.randomUUID().toString());
+
+    final String multicastAddr =
+        Optional.ofNullable(System.getenv("MULTICAST_ADDR")).orElse("230.0.0.0");
+
     final var multicastPort =
         Integer.parseInt(Optional.ofNullable(System.getenv("MULTICAST_PORT")).orElse("8888"));
 
-    var discovery = new MulticastDiscovery();
+    var discovery =
+        new MulticastDiscovery(
+            new Config(serviceName, multicastAddr, multicastPort, Duration.ofSeconds(2)));
 
     var subscription =
         discovery
-            .receive(multicastAddr, multicastPort)
+            .receive()
             .repeat()
-            .doOnEach(System.out::println)
+            .doOnEach(
+                x -> {
+                  System.out.println(
+                      String.join(
+                          "\n",
+                          "*****************************************",
+                          x.toString(),
+                          "n*****************************************"));
+                })
             .subscribe();
 
-    ExecutorService service = Executors.newFixedThreadPool(2);
-    var p = service.submit(new MulticastPublisher(multicastAddr, multicastPort));
+    try (ExecutorService service = Executors.newFixedThreadPool(1)) {
+      var p =
+          service.submit(
+              new MulticastPublisher(
+                  new MulticastPublisher.Config(
+                      serviceName,
+                      instanceName,
+                      multicastAddr,
+                      multicastPort,
+                      Duration.ofMillis(500))));
 
-    try {
-      System.in.read();
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+      try {
+        System.in.read();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      subscription.dispose();
+
+      service.shutdownNow();
+      try {
+        p.get();
+      } catch (InterruptedException ignored) {
+      } catch (ExecutionException e) {
+        throw new RuntimeException(e);
+      }
     }
-
-    subscription.dispose();
-
-    p.get();
 
     //    final var serverPort =
     //        Integer.parseInt(Optional.ofNullable(System.getenv("SERVICE_PORT")).orElse("8888"));
