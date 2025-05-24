@@ -4,7 +4,6 @@
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>
       <env name="HOSTNAME" value="AAA" />
-      <env name="CLIENT_PORT" value="8889" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="ExampleService" />
     <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />

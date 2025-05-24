@@ -20,6 +20,8 @@ podSecurityContext: { }
 
 securityContext: { }
 
+nodeSelector: { }
+
 tolerations: [ ]
 
 affinity: { }

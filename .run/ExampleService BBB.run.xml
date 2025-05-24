@@ -2,7 +2,6 @@
   <configuration default="false" name="ExampleService BBB" type="Application" factoryName="Application">
     <envs>
       <env name="HOSTNAME" value="BBB" />
-      <env name="CLIENT_PORT" value="8890" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="ExampleService" />
     <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />

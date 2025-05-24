@@ -1,11 +1,17 @@
+/* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
+
 package org.mtbo.lcloud.discovery.multicast;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.time.Duration;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 
 public class MulticastPublisher implements Runnable {
+
+  final FileLineLogger logger =
+      FileLineLogger.getLogger(MulticastPublisher.class.getName(), "CLI >>>  ");
 
   private final Config config;
 
@@ -15,13 +21,19 @@ public class MulticastPublisher implements Runnable {
 
   @Override
   public void run() {
-    try (DatagramSocket socket = new DatagramSocket()) {
-      InetAddress group = InetAddress.getByName(config.addr);
-      int n = 0;
-      while (!Thread.currentThread().isInterrupted()) {
+    try (var socket = new DatagramSocket()) {
+      var group = InetAddress.getByName(config.addr);
 
-        var buf = ("ping" + n++).getBytes();
-        DatagramPacket packet = new DatagramPacket(buf, buf.length, group, config.port);
+      final var message =
+          "LC_DISCOVERY "
+              + config.serviceName.replace(" ", "_")
+              + " FROM "
+              + config.instanceName.replace(" ", "_");
+
+      while (!Thread.currentThread().isInterrupted()) {
+        var buf = message.getBytes();
+        var packet = new DatagramPacket(buf, buf.length, group, config.port);
+        logger.finer(message);
         socket.send(packet);
         Thread.sleep(config.interval);
       }

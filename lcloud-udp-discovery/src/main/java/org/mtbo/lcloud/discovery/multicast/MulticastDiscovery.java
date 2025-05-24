@@ -6,13 +6,19 @@ import java.io.IOException;
 import java.net.*;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.function.Function;
+import org.mtbo.lcloud.discovery.DiscoveryService;
+import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
 public class MulticastDiscovery {
+  final FileLineLogger logger =
+      FileLineLogger.getLogger(DiscoveryService.class.getName(), "<<< SVC  ", 32);
+
   final Config config;
 
   final Scheduler networkManagementScheduler =
@@ -29,16 +35,17 @@ public class MulticastDiscovery {
     return bindSockets(
             pair ->
                 receivePacket(pair)
-                    .doOnNext(System.out::println)
+                    //                    .doOnNext(message -> logger.finer(message))
                     .onErrorResume(
                         throwable -> {
                           if (!(throwable.getCause() instanceof SocketTimeoutException)) {
-                            System.out.println("Error on receive: " + throwable.getMessage());
+                            logger.finer("Error on receive: " + throwable.getMessage(), throwable);
                           }
                           return Mono.delay(Duration.ofMillis(100)).thenReturn("");
                         })
                     .repeat())
         .bufferTimeout(Integer.MAX_VALUE, config.interval, HashSet::new)
+        .doOnNext(message -> logger.finer(message.toString()))
         .map(
             strings -> {
               strings.remove("");
@@ -56,20 +63,20 @@ public class MulticastDiscovery {
               try {
 
                 pair.t1.receive(packet);
-                String received = new String(packet.getData(), 0, packet.getLength());
+                String[] received = new String(packet.getData(), 0, packet.getLength()).split(" ");
+                if (4 == received.length
+                    && Objects.equals(received[0], "LC_DISCOVERY")
+                    && received[1].equals(config.serviceName)
+                    && Objects.equals(received[2], "FROM")) {
+                  return received[3];
+                } else {
+                  return null;
+                }
 
-                //                System.out.println(
-                //                    "Received packet: "
-                //                        + received
-                //                        + " on "
-                //                        + Thread.currentThread().getName()
-                //                        + ": "
-                //                        + pair.t2.getName());
-                return received;
               } catch (SocketTimeoutException | SocketException e) {
-                return "";
+                return null;
               } catch (IOException e) {
-                System.out.println("Receiving exception: " + e);
+                logger.finer("Receiving exception: " + e, e);
                 throw new RuntimeException(e);
               }
             })
@@ -89,33 +96,31 @@ public class MulticastDiscovery {
           socketSupplier) {
     return Mono.fromCallable(() -> InetAddress.getByName(config.multicastAddr))
         .publishOn(Schedulers.boundedElastic())
-        //        .cache()
+        .cache()
         .flatMapMany(
             inetAddress ->
                 joinGroup(
-                    pair.t1,
+                    pair,
                     new InetSocketAddress(inetAddress, config.multicastPort),
-                    pair.t2,
                     socketSupplier));
   }
 
   private <T> Flux<T> joinGroup(
-      MulticastSocket socket,
+      Pair<? extends MulticastSocket, ? extends NetworkInterface> pair,
       InetSocketAddress inetSocketAddress,
-      NetworkInterface networkInterface,
       Function<Pair<MulticastSocket, NetworkInterface>, ? extends Flux<? extends T>>
           socketSupplier) {
     return Flux.using(
             () -> {
-              System.out.println("Join group: " + inetSocketAddress + " on " + networkInterface);
-              socket.joinGroup(inetSocketAddress, networkInterface);
-              return new Pair<>(socket, networkInterface);
+              logger.finer("Join group: " + inetSocketAddress + " on " + pair.t2);
+              pair.t1.joinGroup(inetSocketAddress, pair.t2);
+              return new Pair<>(pair.t1, pair.t2);
             },
             socketSupplier,
-            (pair) -> {
+            (p) -> {
               try {
-                System.out.println("Leave group: " + inetSocketAddress + " on " + networkInterface);
-                pair.t1.leaveGroup(inetSocketAddress, pair.t2);
+                logger.finer("Leave group: " + inetSocketAddress + " on " + pair.t2);
+                pair.t1.leaveGroup(inetSocketAddress, p.t2);
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -134,23 +139,28 @@ public class MulticastDiscovery {
     var interfaces =
         Mono.fromCallable(NetworkInterface::networkInterfaces).publishOn(Schedulers.single());
 
-    return interfaces.flatMapMany(
-        networkInterfaceStream ->
-            Flux.fromStream(networkInterfaceStream)
-                .filter(
-                    networkInterface -> {
-                      try {
-                        return networkInterface.supportsMulticast()
-                            && networkInterface.isUp()
-                            && !networkInterface.isLoopback()
-                            && networkInterface.supportsMulticast()
-                            && !networkInterface.isPointToPoint()
-                            && networkInterface.inetAddresses().findAny().isPresent();
-                      } catch (SocketException e) {
-                        return false;
-                      }
-                    })
-                .publishOn(networkManagementScheduler));
+    return interfaces
+        .flatMapMany(
+            networkInterfaceStream ->
+                Flux.fromStream(networkInterfaceStream)
+                    .filter(
+                        networkInterface -> {
+                          try {
+                            return networkInterface.supportsMulticast()
+                                && networkInterface.isUp()
+                                && !networkInterface.isLoopback()
+                                && networkInterface.supportsMulticast()
+                                && !networkInterface.isPointToPoint()
+                                && networkInterface.inetAddresses().findAny().isPresent();
+                          } catch (SocketException e) {
+                            return false;
+                          }
+                        })
+                    .publishOn(networkManagementScheduler))
+        .doOnNext(
+            networkInterface -> {
+              logger.info("Network interface: " + networkInterface);
+            });
   }
 
   private <T> Flux<T> createSocket(
@@ -159,14 +169,14 @@ public class MulticastDiscovery {
           socketSupplier) {
     return Flux.using(
             () -> {
-              System.out.println("Creating MulticastSocket for " + networkInterface);
+              logger.finer("Creating MulticastSocket for " + networkInterface);
               MulticastSocket multicastSocket = new MulticastSocket(config.multicastPort);
               multicastSocket.setSoTimeout((int) config.interval.toMillis());
               return new Pair<>(multicastSocket, networkInterface);
             },
             socketSupplier,
             pair -> {
-              System.out.println("Closing MulticastSocket for " + networkInterface);
+              logger.finer("Closing MulticastSocket for " + networkInterface);
               pair.t1().close();
             },
             false)
