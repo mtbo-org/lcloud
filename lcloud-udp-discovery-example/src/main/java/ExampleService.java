@@ -2,6 +2,7 @@
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Calendar;
@@ -17,6 +18,7 @@ import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery.Config;
 import org.mtbo.lcloud.discovery.multicast.MulticastPublisher;
 import org.mtbo.lcloud.discovery.udp.*;
+import reactor.core.scheduler.Schedulers;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
@@ -79,7 +81,7 @@ public class ExampleService {
    * @param args arguments
    * @throws InterruptedException in case of interruption
    */
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
+  public static void main(String[] args) throws InterruptedException, SocketException {
 
     final String serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
 
@@ -92,7 +94,7 @@ public class ExampleService {
     final var multicastPort =
         Integer.parseInt(Optional.ofNullable(System.getenv("MULTICAST_PORT")).orElse("8888"));
 
-    Config config = new Config(serviceName, multicastAddr, multicastPort, Duration.ofMillis(2000));
+    Config config = new Config(serviceName, multicastAddr, multicastPort, Duration.ofMillis(250));
     var discovery = new MulticastDiscovery(config);
 
     var subscription =
@@ -113,9 +115,23 @@ public class ExampleService {
                     logger.info("****************************************************");
                   }
                 })
+            .subscribeOn(Schedulers.boundedElastic())
             .subscribe();
 
-    try (ExecutorService service = Executors.newFixedThreadPool(1)) {
+    try (ExecutorService service = Executors.newFixedThreadPool(2)) {
+
+      service.submit(
+          () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+              System.gc();
+              try {
+                Thread.sleep(10000);
+              } catch (InterruptedException e) {
+                break;
+              }
+            }
+          });
+
       var p =
           service.submit(
               new MulticastPublisher(
@@ -124,7 +140,7 @@ public class ExampleService {
                       instanceName,
                       multicastAddr,
                       multicastPort,
-                      Duration.ofMillis(1000))));
+                      Duration.ofMillis(50))));
 
       var latch = new CountDownLatch(1);
 
