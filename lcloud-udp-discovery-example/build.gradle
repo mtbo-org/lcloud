@@ -4,19 +4,25 @@ plugins {
 }
 
 group = 'org.mtbo.lcloud'
-version = '3.1.2-M2'
+version = '3.1.2-M5'
 
 apply plugin: 'application'
-mainClassName = 'ExampleService'
+mainClassName = 'SqlDiscoveryExample'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
+    runtimeOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
+    runtimeOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
+    runtimeOnly "io.netty:netty-handler:4.2.1.Final"
+    runtimeOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
     implementation project(':lcloud-udp-discovery')
+    implementation project(':lcloud-sql-discovery')
     implementation "io.projectreactor:reactor-core:$reactorVersion"
-    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation platform("org.junit:junit-bom:$junitVersion")
     testImplementation 'org.junit.jupiter:junit-jupiter'
 }
 
@@ -25,14 +31,14 @@ test {
 }
 
 tasks.register('runApp', JavaExec) {
-    mainClass = 'ExampleService'
+    mainClass = 'SqlDiscoveryExample'
     classpath = sourceSets.main.runtimeClasspath + sourceSets.main.output
 }
 
 jar {
     manifest {
         attributes(
-                'Main-Class': 'ExampleService',
+                'Main-Class': 'SqlDiscoveryExample',
                 'Multi-Release': 'true'
         )
 

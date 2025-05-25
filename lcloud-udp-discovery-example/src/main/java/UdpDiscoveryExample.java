@@ -16,7 +16,6 @@ import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery.Config;
 import org.mtbo.lcloud.discovery.multicast.MulticastPublisher;
-import org.mtbo.lcloud.discovery.udp.*;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
@@ -25,7 +24,7 @@ import sun.misc.SignalHandler;
  *
  * <p>Ping network in 5 seconds
  */
-public class ExampleService {
+public class UdpDiscoveryExample {
 
   static FileLineLogger logger;
 
@@ -38,7 +37,7 @@ public class ExampleService {
 
     if (logFile.isEmpty() && !skipConfig.equals("true")) {
       try (var is =
-          ExampleService.class.getClassLoader().getResourceAsStream("logging.properties")) {
+          UdpDiscoveryExample.class.getClassLoader().getResourceAsStream("logging.properties")) {
         LogManager.getLogManager().readConfiguration(is);
 
       } catch (Throwable e) {
@@ -67,11 +66,11 @@ public class ExampleService {
           }
         });
 
-    logger = FileLineLogger.getLogger(ExampleService.class.getName());
+    logger = FileLineLogger.getLogger(UdpDiscoveryExample.class.getName());
   }
 
   /** Default */
-  ExampleService() {}
+  UdpDiscoveryExample() {}
 
   /**
    * Main method
@@ -92,7 +91,7 @@ public class ExampleService {
     final var multicastPort =
         Integer.parseInt(Optional.ofNullable(System.getenv("MULTICAST_PORT")).orElse("8888"));
 
-    Config config = new Config(serviceName, multicastAddr, multicastPort, Duration.ofMillis(2000));
+    Config config = new Config(serviceName, multicastAddr, multicastPort, Duration.ofMillis(250));
     var discovery = new MulticastDiscovery(config);
 
     var subscription =
@@ -115,7 +114,7 @@ public class ExampleService {
                 })
             .subscribe();
 
-    try (ExecutorService service = Executors.newFixedThreadPool(1)) {
+    try (ExecutorService service = Executors.newFixedThreadPool(2)) {
       var p =
           service.submit(
               new MulticastPublisher(
@@ -124,7 +123,19 @@ public class ExampleService {
                       instanceName,
                       multicastAddr,
                       multicastPort,
-                      Duration.ofMillis(1000))));
+                      Duration.ofMillis(125))));
+
+      service.submit(
+          () -> {
+            try {
+              while (!Thread.currentThread().isInterrupted()) {
+                Thread.sleep(10000);
+                System.gc();
+              }
+            } catch (InterruptedException ignored) {
+
+            }
+          });
 
       var latch = new CountDownLatch(1);
 

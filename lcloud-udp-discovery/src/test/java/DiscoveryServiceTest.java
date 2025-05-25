@@ -33,6 +33,27 @@ public class DiscoveryServiceTest {
   @BeforeAll
   public static void beforeAll() {}
 
+  private static Stream<String> getMessages() {
+    var random = new Random();
+
+    AtomicInteger counter = new AtomicInteger(0);
+
+    var messages =
+        Stream.generate(
+            () -> {
+              final var integer = counter.getAndIncrement();
+              if (0 == integer % 3) return "DISCOVERY_REQUEST testService FROM testInstance";
+              else if (0 == integer % 5) return "DISCOVERY_REQUEST UNK FROM testInstance1";
+              else
+                return IntStream.range(1, 1 + random.nextInt(100))
+                    .boxed()
+                    .map(integer1 -> random.nextInt(256))
+                    .map(aByte -> "" + ((char) aByte.intValue()))
+                    .collect(Collectors.joining());
+            });
+    return messages;
+  }
+
   @BeforeEach
   public void beforeEach() {}
 
@@ -114,23 +135,7 @@ public class DiscoveryServiceTest {
     doCallRealMethod().when(connection).setupLogger();
     connection.setupLogger();
 
-    var random = new Random();
-
-    AtomicInteger counter = new AtomicInteger(0);
-
-    var messages =
-        Stream.generate(
-            () -> {
-              final var integer = counter.getAndIncrement();
-              if (0 == integer % 3) return "DISCOVERY_REQUEST testService FROM testInstance";
-              else if (0 == integer % 5) return "DISCOVERY_REQUEST UNK FROM testInstance1";
-              else
-                return IntStream.range(1, 1 + random.nextInt(100))
-                    .boxed()
-                    .map(integer1 -> random.nextInt(256))
-                    .map(aByte -> "" + ((char) aByte.intValue()))
-                    .collect(Collectors.joining());
-            });
+    var messages = getMessages();
 
     when(connection.socket())
         .thenReturn(Mono.fromCallable(() -> MockSocket.mockDatagramSocket(messages, true, true)));

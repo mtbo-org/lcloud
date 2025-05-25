@@ -31,7 +31,7 @@ Re-apply image:
 
 ```shell
 kubectl scale deployment -n default udp-discovery-example --replicas=0
-kubectl scale deployment -n default udp-discovery-example --replicas=8
+kubectl scale deployment -n default udp-discovery-example --replicas=3
 ```
 
 Scale up:
@@ -49,10 +49,31 @@ kubectl scale deployment -n default udp-discovery-example --replicas=0
 Run locally:
 
 ```shell
+
+cd  /d/work/java/lcloud/lcloud-udp-discovery-example
+HOSTNAME="AAA" \
+  java -Dorg.mtbo.lcloud.discovery.level=INFO \
+    -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
+    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M5-all.jar
+    
+cd  /d/work/java/lcloud/lcloud-udp-discovery-example
+HOSTNAME="BBB" \
+  java -Dorg.mtbo.lcloud.discovery.level=INFO \
+    -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
+    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M5-all.jar
+    
+cd  /d/work/java/lcloud/lcloud-udp-discovery-example
+HOSTNAME="XXX" \
+  java -Dorg.mtbo.lcloud.discovery.level=INFO \
+    -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
+    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M5-all.jar
+    
+cd  /d/work/java/lcloud/lcloud-udp-discovery-example
 HOSTNAME="YYY" \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M2-all.jar
+    -jar build/libs/lcloud-udp-discovery-example-3.1.2-M5-all.jar
+    
 ```
 
 Uninstall:
