@@ -11,7 +11,7 @@ project:
 
   inceptionYear: '2025'
   stereotype: CLI
-  version: 3.1.2-M2
+  version: 3.1.2-M5
 
   languages:
     java:

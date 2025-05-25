@@ -2,25 +2,28 @@ plugins {
     id 'java-library'
     id('com.diffplug.spotless') version "7.0.3"
     id 'signing'
-
-    id 'me.champeau.mrjar' version '0.1.1' apply false
 }
 
 
 def javaProjects = [
+        project(":lcloud-sql-discovery"),
         project(":lcloud-udp-discovery"),
         project(":lcloud-udp-discovery-example"),
 ]
 
 ext {
-    reactorVersion = '3.8.0-M3'
-    junitVersion = '5.12.2'
-    mockitoVersion = '5.17.0'
     assertjVersion = '3.27.3'
+    junitVersion = '5.12.2'
     logbackVersion = '1.5.18'
+    mockitoVersion = '5.17.0'
+    r2dbcPostgresVersion = '1.0.7.RELEASE'
+    r2dbcVersion = '3.5.0'
+    reactorVersion = '3.8.0-M3'
+    slf4jdk14version = '2.0.16'
 }
 
-subprojects {
+
+configure(javaProjects) {
     group = 'org.mtbo.lcloud'
 
     apply plugin: 'java-library'

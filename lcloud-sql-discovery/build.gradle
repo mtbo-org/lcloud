@@ -4,15 +4,17 @@ plugins {
     id 'signing'
 }
 
+group = 'org.mtbo.lcloud'
+version = '3.1.2-M5'
+
 java {
     withJavadocJar()
     withSourcesJar()
+
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
-
-version = '3.1.2-M5'
 
 repositories {
     mavenCentral()
@@ -24,13 +26,18 @@ configurations {
 
 apply plugin: 'java-library'
 
-
 dependencies {
+    compileOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
+    compileOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
+    compileOnly "io.netty:netty-handler:4.2.1.Final"
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+
+    runtimeOnly "org.slf4j:slf4j-jdk14:$slf4jdk14version"
+
+    testImplementation "io.projectreactor:reactor-test:$reactorVersion"
 
     compileOnly "io.projectreactor:reactor-core:$reactorVersion"
     testImplementation "io.projectreactor:reactor-test:$reactorVersion"
-
-    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
 
     testImplementation platform("org.junit:junit-bom:$junitVersion")
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -54,11 +61,6 @@ tasks {
     }
 }
 
-
-test {
-    useJUnitPlatform()
-}
-
 publishing {
     repositories {
         maven {
@@ -73,7 +75,7 @@ publishing {
 
             pom {
                 name = 'LCloud'
-                description = 'Lightweight java implementation of cloud discovery'
+                description = 'Lightweight java implementation of cloud discovery usoing postgres'
                 url = 'https://github.com/mtbo-org/lcloud'
                 licenses {
                     license {
@@ -103,4 +105,8 @@ publishing {
         }
     }
 
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }

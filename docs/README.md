@@ -14,7 +14,7 @@ Enumerate endpoints on LAN.
 
 Example:
 ```
-lcloud-udp-discovery-example/src/main/java/ExampleService.java
+lcloud-udp-discovery-example/src/main/java/UdpDiscoveryExample.java
 ``` 
 
 Gradle: 

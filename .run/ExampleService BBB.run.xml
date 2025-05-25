@@ -1,9 +1,9 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="ExampleService BBB" type="Application" factoryName="Application">
+  <configuration default="false" name="UdpDiscoveryExample BBB" type="Application" factoryName="Application">
     <envs>
       <env name="HOSTNAME" value="BBB" />
     </envs>
-    <option name="MAIN_CLASS_NAME" value="ExampleService" />
+    <option name="MAIN_CLASS_NAME" value="UdpDiscoveryExample" />
     <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />
     <option name="VM_PARAMETERS" value="-enableassertions -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true" />
     <method v="2">
