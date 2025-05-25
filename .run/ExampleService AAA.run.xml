@@ -7,7 +7,7 @@
     </envs>
     <option name="MAIN_CLASS_NAME" value="UdpDiscoveryExample" />
     <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />
-    <option name="VM_PARAMETERS" value="-enableassertions -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true" />
+    <option name="VM_PARAMETERS" value="-enableassertions -D1reactor.schedulers.defaultBoundedElasticOnVirtualThreads=true" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

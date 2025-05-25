@@ -22,12 +22,16 @@ public class MulticastDiscovery {
   final Config config;
 
   final Scheduler networkManagementScheduler =
-      Schedulers.newParallel("network-sched", Schedulers.DEFAULT_POOL_SIZE / 4);
+      Schedulers.newParallel("network-sched", Math.max(2, (Schedulers.DEFAULT_POOL_SIZE + 3) / 4));
 
+  //  final Scheduler receiveScheduler = Schedulers.boundedElastic();
   final Scheduler receiveScheduler =
-      Schedulers.newParallel("receiving-sched", Schedulers.DEFAULT_POOL_SIZE);
+      Schedulers.newParallel(
+          "receiver-sched", Math.max(1, (int) NetworkInterface.networkInterfaces().count()));
 
-  public MulticastDiscovery(Config config) {
+  //      Schedulers.newParallel("receiver-sched", Schedulers.DEFAULT_POOL_SIZE);
+
+  public MulticastDiscovery(Config config) throws SocketException {
     this.config = config;
   }
 
@@ -44,6 +48,7 @@ public class MulticastDiscovery {
                           return Mono.delay(Duration.ofMillis(100)).thenReturn("");
                         })
                     .repeat())
+        .doOnEach(stringSignal -> logger.finer(stringSignal.toString()))
         .bufferTimeout(Integer.MAX_VALUE, config.interval, HashSet::new)
         .doOnNext(message -> logger.finer(message.toString()))
         .map(
@@ -56,32 +61,46 @@ public class MulticastDiscovery {
   private Mono<String> receivePacket(
       Pair<? extends MulticastSocket, ? extends NetworkInterface> pair) {
 
-    return Mono.fromCallable(
-            () -> {
-              final byte[] buf = new byte[256];
-              DatagramPacket packet = new DatagramPacket(buf, buf.length);
-              try {
+    final byte[] buf = new byte[256];
+    DatagramPacket packet1 = new DatagramPacket(buf, buf.length);
 
-                pair.t1.receive(packet);
-                String[] received = new String(packet.getData(), 0, packet.getLength()).split(" ");
-                if (4 == received.length
-                    && Objects.equals(received[0], "LC_DISCOVERY")
-                    && received[1].equals(config.serviceName)
-                    && Objects.equals(received[2], "FROM")) {
-                  return received[3];
-                } else {
-                  return null;
-                }
+    return Mono.just(packet1)
+        .cache()
+        .flatMap(
+            datagramPacket ->
+                Mono.fromCallable(
+                        () -> {
+                          try {
 
-              } catch (SocketTimeoutException | SocketException e) {
-                return null;
-              } catch (IOException e) {
-                logger.finer("Receiving exception: " + e, e);
-                throw new RuntimeException(e);
-              }
-            })
-        .timeout(config.interval)
-        .publishOn(receiveScheduler);
+                            //                            logger.finest("Receiving packet on " +
+                            // pair.t2);
+                            pair.t1.receive(datagramPacket);
+                            //                            logger.finest("Received packet  on " +
+                            // pair.t2);
+
+                            String[] received =
+                                new String(datagramPacket.getData(), 0, datagramPacket.getLength())
+                                    .split(" ");
+                            if (4 == received.length
+                                && Objects.equals(received[0], "LC_DISCOVERY")
+                                && received[1].equals(config.serviceName)
+                                && Objects.equals(received[2], "FROM")) {
+                              return received[3];
+                            } else {
+                              return null;
+                            }
+
+                          } catch (SocketTimeoutException | SocketException e) {
+                            //                            logger.finest("Receiving ERROR on " +
+                            // pair.t2 + ": " + e.getMessage());
+                            return null;
+                          } catch (IOException e) {
+                            logger.finer("Receiving exception: " + e, e);
+                            throw new RuntimeException(e);
+                          }
+                        })
+                    .timeout(config.interval)
+                    .publishOn(receiveScheduler));
   }
 
   private <T> Flux<T> bindSockets(
@@ -180,7 +199,7 @@ public class MulticastDiscovery {
               pair.t1().close();
             },
             false)
-        .publishOn(networkManagementScheduler);
+        .publishOn(Schedulers.boundedElastic());
   }
 
   public record Config(

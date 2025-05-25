@@ -18,9 +18,11 @@ docker login
 docker build -t lcloud-udp-discovery-example:latest .
 helm install udp-discovery-example udp-discovery-example
 ```
+
 ```shell
 helm uninstall udp-discovery-example
 ```
+
 Rebuild example:
 
 ```shell

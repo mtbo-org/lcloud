@@ -2,10 +2,10 @@
 
 package org.mtbo.lcloud.discovery.multicast;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.io.IOException;
+import java.net.*;
 import java.time.Duration;
+import java.util.logging.Level;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 
 public class MulticastPublisher implements Runnable {
@@ -21,24 +21,73 @@ public class MulticastPublisher implements Runnable {
 
   @Override
   public void run() {
-    try (var socket = new DatagramSocket()) {
-      var group = InetAddress.getByName(config.addr);
 
+    try {
+      //      var interfaces =
+      //          NetworkInterface.networkInterfaces()
+      //              .filter(
+      //                  networkInterface -> {
+      //                    try {
+      //                      return networkInterface.supportsMulticast()
+      //                          && networkInterface.isUp()
+      //                          && !networkInterface.isVirtual()
+      //                          && !networkInterface.isLoopback()
+      //                          && networkInterface.supportsMulticast()
+      //                          && !networkInterface.isPointToPoint()
+      //                          && networkInterface.inetAddresses().findAny().isPresent();
+      //                    } catch (SocketException e) {
+      //                      return false;
+      //                    }
+      //                  })
+      //              .toList();
+      //
+      //      try (ExecutorService service = Executors.newFixedThreadPool(interfaces.size())) {
+      //
+      //        for (var intf : interfaces) {
       final var message =
           "LC_DISCOVERY "
               + config.serviceName.replace(" ", "_")
               + " FROM "
               + config.instanceName.replace(" ", "_");
+      var buf = message.getBytes();
+      //
+      //          intf.getInterfaceAddresses().stream()
+      //              .map(InterfaceAddress::getAddress)
+      //              .forEach(
+      //                  inetAddress -> {
+      //                    var group = new InetSocketAddress(inetAddress, config.port);
+      InetAddress group = InetAddress.getByName(config.addr);
+      var packet = new DatagramPacket(buf, buf.length, group, config.port);
 
-      while (!Thread.currentThread().isInterrupted()) {
-        var buf = message.getBytes();
-        var packet = new DatagramPacket(buf, buf.length, group, config.port);
-        logger.finer(message);
-        socket.send(packet);
-        Thread.sleep(config.interval);
+      //                    service.submit(
+      //                        () -> {
+      try (var socket = new DatagramSocket(null)) {
+        while (!Thread.currentThread().isInterrupted()) {
+          if (logger.isLoggable(Level.FINEST)) {
+            logger.finest(message /* + " on " + intf*/);
+          }
+
+          try {
+            socket.send(packet);
+          } catch (IOException e) {
+            logger.finer("send error: " + e, e);
+          }
+
+          try {
+            Thread.sleep(config.interval);
+          } catch (InterruptedException e) {
+            break;
+          }
+        }
+      } catch (IOException e) {
+        throw new RuntimeException(e);
       }
-    } catch (InterruptedException ignored) {
-    } catch (Exception e) {
+      //                        });
+      //                  });
+      //        }
+      //      }
+
+    } catch (UnknownHostException e) {
       throw new RuntimeException(e);
     }
   }

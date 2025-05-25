@@ -2,6 +2,7 @@
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Calendar;
@@ -16,6 +17,8 @@ import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery;
 import org.mtbo.lcloud.discovery.multicast.MulticastDiscovery.Config;
 import org.mtbo.lcloud.discovery.multicast.MulticastPublisher;
+import org.mtbo.lcloud.discovery.udp.*;
+import reactor.core.scheduler.Schedulers;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
@@ -78,7 +81,7 @@ public class UdpDiscoveryExample {
    * @param args arguments
    * @throws InterruptedException in case of interruption
    */
-  public static void main(String[] args) throws InterruptedException, ExecutionException {
+  public static void main(String[] args) throws InterruptedException, SocketException {
 
     final String serviceName = Optional.ofNullable(System.getenv("SERVICE_NAME")).orElse("lcloud");
 
@@ -112,9 +115,23 @@ public class UdpDiscoveryExample {
                     logger.info("****************************************************");
                   }
                 })
+            .subscribeOn(Schedulers.boundedElastic())
             .subscribe();
 
     try (ExecutorService service = Executors.newFixedThreadPool(2)) {
+
+      service.submit(
+          () -> {
+            while (!Thread.currentThread().isInterrupted()) {
+              System.gc();
+              try {
+                Thread.sleep(10000);
+              } catch (InterruptedException e) {
+                break;
+              }
+            }
+          });
+
       var p =
           service.submit(
               new MulticastPublisher(
@@ -123,19 +140,7 @@ public class UdpDiscoveryExample {
                       instanceName,
                       multicastAddr,
                       multicastPort,
-                      Duration.ofMillis(125))));
-
-      service.submit(
-          () -> {
-            try {
-              while (!Thread.currentThread().isInterrupted()) {
-                Thread.sleep(10000);
-                System.gc();
-              }
-            } catch (InterruptedException ignored) {
-
-            }
-          });
+                      Duration.ofMillis(50))));
 
       var latch = new CountDownLatch(1);
 
