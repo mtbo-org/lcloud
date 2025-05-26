@@ -8,7 +8,7 @@ plugins {
 def javaProjects = [
         project(":lcloud-sql-discovery"),
         project(":lcloud-udp-discovery"),
-        project(":lcloud-udp-discovery-example"),
+        project(":lcloud-discovery-example"),
 ]
 
 ext {

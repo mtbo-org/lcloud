@@ -10,6 +10,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
@@ -48,14 +49,17 @@ public class SqlDiscovery {
             """
 create table if not exists instances
 (
-    id      uuid                     default gen_random_uuid() not null
+    id      uuid not null
         primary key,
     service varchar(255),
     name    varchar(255),
     last    timestamp with time zone default now(),
     constraint instances_uniq
         unique (name, service)
-)""")
+);
+create index if not exists last_index
+    on instances (last);
+                        """)
         .fetch()
         .rowsUpdated()
         .hasElement();
@@ -93,16 +97,61 @@ create table if not exists instances
                         .flatMap(aLong -> request(template).onErrorResume(fallback))));
   }
 
+  /**
+   * Clean self. Use on service shutdown.
+   *
+   * @param fallback error handler
+   * @return count of cleaned instances
+   */
+  public Mono<Long> clean(Function<Throwable, Mono<Boolean>> fallback) {
+    var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
+
+    return createTemplate()
+        .flatMap(
+            template ->
+                template
+                    .delete(Instances.class)
+                    .matching(
+                        query(
+                            where("service")
+                                .is(config.serviceName)
+                                .and("name")
+                                .is(config.instanceName)
+                                .and("last")
+                                .lessThan(threshold)))
+                    .all())
+        .onErrorComplete();
+  }
+
+  /**
+   * Clean all out-of-time instances. Use on service start.
+   *
+   * @param fallback error handler
+   * @return count of cleaned instances
+   */
+  public Mono<Long> cleanAll(Function<Throwable, Mono<Boolean>> fallback) {
+    var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
+
+    return createTemplate()
+        .flatMap(
+            template ->
+                template
+                    .delete(Instances.class)
+                    .matching(
+                        query(
+                            where("service")
+                                .is(config.serviceName)
+                                .and("last")
+                                .lessThan(threshold)))
+                    .all())
+        .onErrorComplete();
+  }
+
   private Mono<Set<String>> request(R2dbcEntityTemplate template) {
+    var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
     return template
         .select(Instances.class)
-        .matching(
-            query(
-                where("service")
-                    .is(config.serviceName)
-                    .and("last")
-                    .greaterThan(
-                        (Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval))))))
+        .matching(query(where("service").is(config.serviceName).and("last").greaterThan(threshold)))
         .all()
         .map(Instances::name)
         .collect(Collectors.toSet());
@@ -111,11 +160,19 @@ create table if not exists instances
   private Mono<Boolean> update(R2dbcEntityTemplate template) {
     return template
         .getDatabaseClient()
-        .sql(
-            """
-INSERT INTO instances (service, name) VALUES (:service, :name)
-  ON CONFLICT ON CONSTRAINT instances_uniq
-  DO UPDATE SET last=now()""")
+        .sql("update instances set last = now() where service=:service and name=:name")
+        .bind("service", config.serviceName)
+        .bind("name", config.instanceName)
+        .fetch()
+        .rowsUpdated()
+        .flatMap(aLong -> aLong == 1 ? Mono.just(true) : insert(template));
+  }
+
+  private Mono<Boolean> insert(R2dbcEntityTemplate template) {
+    return template
+        .getDatabaseClient()
+        .sql("INSERT INTO instances (id, service, name) VALUES (:id, :service, :name)")
+        .bind("id", UUID.randomUUID())
         .bind("service", config.serviceName)
         .bind("name", config.instanceName)
         .fetch()

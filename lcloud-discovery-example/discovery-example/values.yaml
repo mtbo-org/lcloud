@@ -1,0 +1,27 @@
+replicaCount: 2
+
+image:
+  repository: lcloud-discovery-example
+  pullPolicy: IfNotPresent
+  tag: ""
+
+imagePullSecrets: [ ]
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: { }
+  name: ""
+
+podAnnotations: { }
+podLabels: { }
+
+podSecurityContext: { }
+
+securityContext: { }
+
+nodeSelector: { }
+
+tolerations: [ ]
+
+affinity: { }

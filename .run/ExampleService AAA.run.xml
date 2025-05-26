@@ -1,15 +1,16 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="UdpDiscoveryExample AAA" type="Application" factoryName="Application">
-    <option name="ALTERNATIVE_JRE_PATH" value="21" />
-    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <envs>
-      <env name="HOSTNAME" value="AAA" />
-    </envs>
-    <option name="MAIN_CLASS_NAME" value="UdpDiscoveryExample" />
-    <module name="org.mtbo.lcloud.lcloud-udp-discovery-example.main" />
-    <option name="VM_PARAMETERS" value="-enableassertions -D1reactor.schedulers.defaultBoundedElasticOnVirtualThreads=true" />
-    <method v="2">
-      <option name="Make" enabled="true" />
-    </method>
-  </configuration>
+    <configuration default="false" name="MulticastDiscoveryExample AAA" type="Application" factoryName="Application">
+        <option name="ALTERNATIVE_JRE_PATH" value="21"/>
+        <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true"/>
+        <envs>
+            <env name="HOSTNAME" value="AAA"/>
+        </envs>
+        <option name="MAIN_CLASS_NAME" value="MulticastDiscoveryExample"/>
+        <module name="org.mtbo.lcloud.lcloud-discovery-example.main"/>
+        <option name="VM_PARAMETERS"
+                value="-enableassertions -D1reactor.schedulers.defaultBoundedElasticOnVirtualThreads=true"/>
+        <method v="2">
+            <option name="Make" enabled="true"/>
+        </method>
+    </configuration>
 </component>

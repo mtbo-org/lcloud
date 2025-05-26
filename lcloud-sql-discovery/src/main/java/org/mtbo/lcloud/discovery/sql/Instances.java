@@ -2,7 +2,7 @@
 
 package org.mtbo.lcloud.discovery.sql;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import org.springframework.data.relational.core.mapping.Table;
 
 /**
@@ -14,4 +14,4 @@ import org.springframework.data.relational.core.mapping.Table;
  * @param last last ping time
  */
 @Table
-public record Instances(String id, String service, String name, OffsetDateTime last) {}
+public record Instances(String id, String service, String name, Instant last) {}

@@ -42,4 +42,4 @@ build
 /htmlReport/
 *.hprof
 /logs/
-/lcloud-udp-discovery-example/logs/
+/lcloud-discovery-example/logs/

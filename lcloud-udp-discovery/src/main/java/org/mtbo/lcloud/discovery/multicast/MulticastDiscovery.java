@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.function.Function;
-import org.mtbo.lcloud.discovery.DiscoveryService;
 import org.mtbo.lcloud.discovery.logging.FileLineLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -17,7 +16,7 @@ import reactor.core.scheduler.Schedulers;
 
 public class MulticastDiscovery {
   final FileLineLogger logger =
-      FileLineLogger.getLogger(DiscoveryService.class.getName(), "<<< SVC  ", 32);
+      FileLineLogger.getLogger(MulticastDiscovery.class.getName(), "<<< SVC  ", 32);
 
   final Config config;
 

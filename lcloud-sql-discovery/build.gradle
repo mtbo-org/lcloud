@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'org.mtbo.lcloud'
-version = '3.1.2-M5'
+version = '3.1.2-M6'
 
 java {
     withJavadocJar()
@@ -24,31 +24,36 @@ configurations {
     mockitoAgent
 }
 
+configurations.configureEach {
+    exclude module: 'slf4j-jdk14'
+    exclude module: 'netty-handler'
+    exclude module: 'netty-common'
+    exclude module: 'netty-transport-native-epoll'
+    exclude module: 'netty-resolver-dns-native-macos'
+}
+
 apply plugin: 'java-library'
 
 dependencies {
-    compileOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
-    compileOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
+    compileOnly "com.google.code.findbugs:jsr305:3.0.2"
     compileOnly "io.netty:netty-handler:4.2.1.Final"
-    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
-
-    runtimeOnly "org.slf4j:slf4j-jdk14:$slf4jdk14version"
-
-    testImplementation "io.projectreactor:reactor-test:$reactorVersion"
-
+    compileOnly "io.netty:netty-common:4.2.1.Final"
     compileOnly "io.projectreactor:reactor-core:$reactorVersion"
+    compileOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
+    compileOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
+
+    testImplementation "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
     testImplementation "io.projectreactor:reactor-test:$reactorVersion"
-
-    testImplementation platform("org.junit:junit-bom:$junitVersion")
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.junit.jupiter:junit-jupiter-api'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-
-    testRuntimeOnly "ch.qos.logback:logback-classic:$logbackVersion"
     testImplementation "org.assertj:assertj-core:$assertjVersion"
+    testImplementation "org.junit.jupiter:junit-jupiter"
+    testImplementation "org.junit.jupiter:junit-jupiter-api"
+    testImplementation "org.junit.jupiter:junit-jupiter-params"
+    testImplementation platform("org.junit:junit-bom:$junitVersion")
     testImplementation("org.mockito:mockito-core:$mockitoVersion")
+    testRuntimeOnly "ch.qos.logback:logback-classic:$logbackVersion"
+    testRuntimeOnly "io.r2dbc:r2dbc-h2:1.0.0.RELEASE"
+    testRuntimeOnly "org.junit.jupiter:junit-jupiter-engine"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
     mockitoAgent("org.mockito:mockito-core:$mockitoVersion") {
         transitive = false
     }

@@ -10,7 +10,7 @@
       </option>
       <option name="taskNames">
         <list>
-          <option value=":lcloud-udp-discovery:test" />
+          <option value=":lcloud-sql-discovery:test" />
         </list>
       </option>
       <option name="vmOptions" />
@@ -20,9 +20,8 @@
     <EXTENSION ID="com.intellij.execution.ExternalSystemRunConfigurationJavaExtension">
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="UdpDiscoveryExample" />
+          <option name="PATTERN" value="org.mtbo.lcloud.discovery.sql.*" />
           <option name="ENABLED" value="true" />
-          <option name="INCLUDE" value="false" />
         </pattern>
       </extension>
     </EXTENSION>

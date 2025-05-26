@@ -13,11 +13,12 @@
 Enumerate endpoints on LAN.
 
 Example:
+
 ```
-lcloud-udp-discovery-example/src/main/java/UdpDiscoveryExample.java
+lcloud-discovery-example/src/main/java/MulticastDiscoveryExample.java
 ``` 
 
-Gradle: 
+Gradle:
 
 ```groovy
 implementation 'org.mtbo.lcloud:lcloud-udp-discovery:3.0.1'
