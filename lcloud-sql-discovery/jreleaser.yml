@@ -1,0 +1,66 @@
+project:
+  name: lcloud-sql-discovery
+  copyright: 2025 @ Vladimir E. Koltunov
+  description: lcloud
+  longDescription: Lightweight java implementation of cloud discovery
+  links:
+    homepage: https://github.com/mtbo-org/lcloud
+  authors:
+    - Vladimir Koltunov
+  license: APACHE-2.0
+
+  inceptionYear: '2025'
+  stereotype: CLI
+  version: 3.1.2-M6
+
+  languages:
+    java:
+      version: '21'
+      groupId: org.mtbo.lcloud
+      artifactId: lcloud-sql-discovery
+      mainModule: org.mtbo.lcloud.discovery
+
+signing:
+  active: ALWAYS
+  armored: true
+  verify: true
+
+distributions:
+  lcloud-sql-discovery:
+    type: SINGLE_JAR
+    artifacts:
+      - path: build/libs/{{distributionName}}-{{projectVersion}}.jar
+
+assemble:
+  active: ALWAYS
+
+release:
+  github:
+    skipRelease: true
+    skipTag: true
+    owner: mtbo-org
+    overwrite: true
+    changelog:
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        format: '- {{contributorName}}{{#contributorUsernameAsLink}} ({{.}}){{/contributorUsernameAsLink}}'
+
+deploy:
+  active: ALWAYS
+
+  maven:
+    mavenCentral:
+      release-deploy:
+        applyMavenCentralRules: true
+        active: RELEASE
+        url: https://central.sonatype.com/api/v1/publisher
+        stagingRepositories:
+          - build/staging-deploy
+        authorization: BASIC
+        sign: true
+        checksums: true
+        sourceJar: true
+        javadocJar: true
+        retryDelay: 60
+        deploymentId: 67e1e05f-104b-415f-9423-659babb03b44
