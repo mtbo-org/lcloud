@@ -9,22 +9,18 @@
 
 #include "instances.h"
 
-#include <utility>
 #include <pqxx/result>
 #include <pqxx/transaction>
 
-lcloud::instances::instances(std::string service) : service(std::move(service)) {
-}
-
-
-class db_instances final : public lcloud::instances {
+class postgres_instances final : public lcloud::db_instances<lcloud::ResultReader<pqxx::result> > {
 public:
-    explicit db_instances(const std::string &service, std::shared_ptr<lcloud::database> database): instances(service) {
-        database_ = std::move(database);
+    postgres_instances(const std::string &service,
+                       const std::shared_ptr<lcloud::database<lcloud::ResultReader<pqxx::result> > > &database)
+        : db_instances(service, database) {
     }
 
-    void initialize() override {
-        database_->exec(R"(
+    std::string init_query_string() override {
+        return R"(
 create table if not exists instances
 (
     id      uuid not null primary key,
@@ -38,34 +34,20 @@ create table if not exists instances
 
 create index if not exists last_index
     on instances(last);
-)");
+)";
     }
 
-    std::list<std::string> get_all() override {
-        std::list<std::string> result;
-
-        pqxx::work *tx{};
-
-        auto rowset = database_->exec("select name from instances where service=" + database_->quote(service));
-        if (rowset == nullptr) {
-            return {};
-        }
-
-        auto results = std::list<std::string>();
-
-        for (auto row: *rowset) {
-            results.emplace_back(row["name"].c_str());
-        }
-
-        return result;
-    }
-
-    void add(std::string instance) override {
+    std::string add_query_string() override {
+        return "select name from instances where service=" + database_->quote(service_);
     }
 };
 
-std::function<std::shared_ptr<lcloud::instances>(std::string service)> lcloud::create_instances;
+template<>
+std::function<std::shared_ptr<lcloud::instances<lcloud::ResultReader<pqxx::result> > >(std::string service)>
+lcloud::create_instances<lcloud::ResultReader<pqxx::result> >;
 
-std::shared_ptr<lcloud::instances> lcloud::create_db_instances(const std::string &service) {
-    return std::make_shared<db_instances>(db_instances(service, create_database()));
+std::shared_ptr<lcloud::instances<lcloud::ResultReader<pqxx::result> > > create_postgres_instances(
+    const std::string &service) {
+    return std::make_shared<
+        postgres_instances>(service, lcloud::create_database<lcloud::ResultReader<pqxx::result> >());
 }

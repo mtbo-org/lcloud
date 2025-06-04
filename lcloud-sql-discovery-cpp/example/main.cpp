@@ -5,8 +5,11 @@
 
 
 //export PATH=/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.39.33519/bin/Hostx64/x64:$PATH
+//-Dlibpqxx_DIR=D:\Programs\libpqxx\lib\cmake\libpqxx -DPostgreSQL_ROOT=D:\Programs\postgres-dev -DGTest_DIR=D:\Programs\googletest\lib\cmake\GTest -Drxcpp_DIR=D:\Programs\RxCpp\share\rxcpp\cmake
 
 #include <iostream>
+#include <csignal>
+#include <cstdio>
 #include <discovery.h>
 
 #include "repo/instances.h"
@@ -21,6 +24,11 @@ void DI() {
     };
 }
 
+namespace {
+    std::function<void(int)> shutdown_handler;
+    void signal_handler(const int signal) { shutdown_handler(signal); }
+}
+
 int main() {
     DI();
 
@@ -31,6 +39,22 @@ int main() {
     discovery.initialize();
 
     std::cout << "DB initialized\n";
+
+    const auto ping_subscription = discovery.ping();
+
+    std::signal(SIGINT, signal_handler);
+    std::atomic_bool running{true};
+
+    shutdown_handler = [&](int signal) {
+        std::cout << "Discovery shutdown...\n";
+        ping_subscription.unsubscribe();
+        running = false;
+        running.notify_all();
+    };
+
+    running.wait(true);
+
+    std::cout << "Exit\n";
 
     return 0;
 }

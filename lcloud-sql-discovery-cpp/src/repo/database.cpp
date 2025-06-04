@@ -3,26 +3,23 @@
 // All rights reserved. Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//
-// Created by bekamk on 03.06.2025.
-//
-
 #include "database.h"
 
 #include <iostream>
 #include <pqxx/pqxx>
 
-class postgres_database : public lcloud::database {
+class postgres_database final : public lcloud::database<lcloud::ResultReader<pqxx::result>, pqxx::row> {
 public:
-    explicit postgres_database(const std::string &connection_string) {
+    explicit postgres_database(const std::string &connection_string) noexcept(false) {
         connection_ = std::make_shared<pqxx::connection>(connection_string);
     }
 
-    std::shared_ptr<pqxx::result> exec(const std::string &query_string) override {
+    std::shared_ptr<lcloud::ResultReader<pqxx::result> >
+    exec(const std::string &query_string) noexcept(false) override {
         pqxx::work tx{*connection_};
 
         try {
-            auto r = std::make_shared<pqxx::result>(tx.exec(query_string));
+            auto r = std::make_shared<lcloud::ResultReader<pqxx::result> >(tx.exec(query_string));
             tx.commit();
             return r;
         } catch (pqxx::sql_error const &e) {
@@ -40,13 +37,19 @@ public:
         return connection_->quote(string);
     }
 
+    std::string read_string(const pqxx::row &row, const char *str) override {
+        return row[str].c_str();
+    }
+
 private:
     std::shared_ptr<pqxx::connection> connection_;
 };
 
+template<>
+std::function<std::shared_ptr<lcloud::database<lcloud::ResultReader<pqxx::result> > >()> lcloud::create_database<
+    lcloud::ResultReader<pqxx::result> >;
 
-std::function<std::shared_ptr<lcloud::database>()> lcloud::create_database;
-
-std::shared_ptr<lcloud::database> lcloud::create_postgres_database(const std::string &connection_string) {
+std::shared_ptr<lcloud::database<lcloud::ResultReader<pqxx::result> > > lcloud::create_postgres_database(
+    const std::string &connection_string) {
     return std::make_shared<postgres_database>(connection_string);
 }

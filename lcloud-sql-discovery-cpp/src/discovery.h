@@ -9,26 +9,29 @@
 
 #ifndef SQL_DISCOVERY_H
 #define SQL_DISCOVERY_H
+#include <memory>
+#include <rx-observable.hpp>
 #include <string>
-#include <utility>
-
-#include "repo/instances.h"
 
 namespace lcloud {
     class discovery {
     public:
-        discovery(std::string service_name, std::string instance_name);
+        discovery(std::string service_name, std::string instance_name) : service_name(
+                                                                             std::move(service_name)),
+                                                                         instance_name(std::move(instance_name)) {
+        }
 
-        void initialize() const;
+        virtual ~discovery() = default;;
 
-        void lookup() const;
+        virtual void initialize() const noexcept(false) = 0;
 
-        void ping() const;
+        virtual void lookup() const = 0;
 
-    private:
+        [[nodiscard]] virtual rxcpp::composite_subscription ping() const = 0;
+
+    protected:
         const std::string service_name;
         const std::string instance_name;
-        std::shared_ptr<instances> instances_;
     };
 } // lcloud
 

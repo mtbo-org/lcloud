@@ -8,43 +8,75 @@
 #include <iostream>
 #include <bits/ostream.tcc>
 #include <rx.hpp>
-
+#include <utility>
 #include "repo/instances.h"
 
+namespace Rx {
+    using namespace rxcpp;
+    using namespace rxcpp::sources;
+    using namespace rxcpp::operators;
+    using namespace rxcpp::util;
+}
+
+using namespace Rx;
+
+
 namespace lcloud {
-    discovery::discovery(std::string service_name,
-                         std::string instance_name): service_name(
-                                                         std::move(service_name)),
-                                                     instance_name(std::move(instance_name)) {
-        instances_ = create_instances(service_name);
-    }
+    class sql_discovery : public discovery {
+    public:
+        std::function<std::shared_ptr<instances<ResultReader<pqxx::result> > >(std::string service)>::result_type
+        instances_;
 
-    void discovery::initialize() const {
-        instances_->initialize();
-    }
+        sql_discovery(const std::string &service_name,
+                      const std::string &instance_name) : discovery(service_name, instance_name) {
+            instances_ = create_instances<ResultReader<pqxx::result> >(service_name);
+        }
 
-    void discovery::lookup() const {
-        std::cout << "Lookup on: " << service_name << std::endl;
+        void initialize() const override {
+            instances_->initialize();
+        }
 
-        auto values = rxcpp::observable<>::range(1); // infinite (until overflow) stream of integers
+        void lookup() const override {
+        }
 
-        auto s1 = values.
-                map([](int prime) { return std::make_tuple("1:", prime); });
+        composite_subscription ping() const override {
+            std::cout << "Ping to: " << service_name << ":" << instance_name << std::endl;
 
-        auto s2 = values.
-                map([](int prime) { return std::make_tuple("2:", prime); });
+            const auto published_observable = observable<>::interval(std::chrono::milliseconds(1000),
+                                                                     observe_on_new_thread())
+                                              | flat_map(
+                                                  [this](int v) {
+                                                      return
+                                                              observable<>::create<std::nullptr_t>(
+                                                                  [&](const subscriber<std::nullptr_t> &s) {
+                                                                      std::cout << "ADD" << std::endl;
+                                                                      instances_->add(instance_name);
+                                                                      s.on_completed();
+                                                                  });
+                                                  })
+                                              | on_error_resume_next([](std::exception_ptr ep) {
+                                                  printf("Resuming after: %s\n", what(std::move(ep)).c_str());
+                                                  return observable<>::just(nullptr);
+                                              })
+                                              | publish()
+                                              | ref_count();
 
-        s1.
-                merge(s2).
-                take(6).
-                as_blocking().
-                subscribe(rxcpp::util::apply_to(
-                    [](const char *s, int p) {
-                        printf("%s %d\n", s, p);
-                    }));
-    }
 
-    void discovery::ping() const {
-        std::cout << "Ping to: " << service_name << ":" << instance_name << std::endl;
-    }
+            const auto subscription = published_observable.
+                    finally([] {
+                        std::cout << "unsubscribed" << std::endl << std::endl;
+                    }).
+                    subscribe(
+                        [](std::nullptr_t v) { printf("OnNext: \n"); },
+                        [](std::exception_ptr ep) {
+                            try { std::rethrow_exception(std::move(ep)); } catch (const std::exception &ex) {
+                                printf("OnError: %s\n", ex.what());
+                            }
+                        },
+                        [] { printf("OnCompleted\n"); }
+                    );
+
+            return subscription;
+        }
+    };
 } // lcloud
