@@ -32,15 +32,14 @@ void DI() {
 
 namespace {
 std::function<void(int)> shutdown_handler;
-void signal_handler(const int signal) {
-  shutdown_handler(signal);
-}
+void signal_handler(const int signal) { shutdown_handler(signal); }
 }  // namespace
 
 int main() {
   DI();
 
-  const auto discovery = lcloud::create_postgres_discovery("lcloud", "aaa");
+  const auto discovery = lcloud::create_postgres_discovery(
+      "lcloud", "aaa", std::chrono::milliseconds(250));
 
   discovery->initialize();
 

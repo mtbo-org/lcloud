@@ -13,6 +13,7 @@
 #include "catch2/catch_all.hpp"
 #include "rxcpp/rx-test.hpp"
 
+#pragma region gmock using
 using testing::Exactly;
 using testing::Invoke;
 using testing::IsEmpty;
@@ -21,6 +22,9 @@ using testing::Not;
 using testing::Return;
 using testing::ReturnNull;
 using testing::StartsWith;
+#pragma endregion
+
+#pragma region MockDatabase
 
 typedef std::map<std::string, std::string> test_row_t;
 typedef std::list<test_row_t> test_result_t;
@@ -49,6 +53,9 @@ class MockDatabase : public database_t {
   MOCK_METHOD(std::string, read_string,
               (const test_row_t& row, const char* str), (override));
 };
+#pragma endregion
+
+#pragma region MockInstances
 
 class MockInstances final
     : public lcloud::db_instances<test_result_reader, test_row_t> {
@@ -96,9 +103,11 @@ std::function<
     std::shared_ptr<lcloud::db_instances<test_result_reader, test_row_t>>(
         std::string service, database_ptr database)>
     lcloud::create_db_instances<test_result_reader, test_row_t>;
+#pragma endregion
 
-struct DatabaseTest : testing::Test {
-  DatabaseTest() {
+#pragma region DatabaseTestFixture
+struct DatabaseTestFixture : testing::Test {
+  DatabaseTestFixture() {
     database = std::make_shared<NiceMock<MockDatabase>>();
 
     ON_CALL(*database, read_string(testing::_, testing::_))
@@ -119,7 +128,10 @@ struct DatabaseTest : testing::Test {
   std::shared_ptr<NiceMock<MockDatabase>> database;
 };
 
-TEST_F(DatabaseTest, Init) {
+#pragma endregion
+
+#pragma region Test: Init
+TEST_F(DatabaseTestFixture, Init) {
   // ON_CALL(*database, exec(_)).WillByDefault(
   //     Return());
 
@@ -131,8 +143,10 @@ TEST_F(DatabaseTest, Init) {
 
   instances->initialize();
 }
+#pragma endregion
 
-TEST_F(DatabaseTest, GetAllReturnList) {
+#pragma region Test: GetAllReturnList
+TEST_F(DatabaseTestFixture, GetAllReturnList) {
   test_result_t result{
       test_row_t{{"name", "a"}},
       test_row_t{{"name", "b"}},
@@ -150,12 +164,14 @@ TEST_F(DatabaseTest, GetAllReturnList) {
   const auto instances =
       lcloud::create_db_instances<test_result_reader, test_row_t>("test",
                                                                   database);
-  const auto all = instances->get_all(std::chrono::milliseconds(1000));
+  const auto all = instances->get_all(std::chrono::milliseconds(1));
 
   EXPECT_EQ(all, std::list<std::string>({"a", "b", "c"}));
 }
+#pragma endregion
 
-TEST_F(DatabaseTest, GetAllReturnNothing) {
+#pragma region Test: GetAllReturnNothing
+TEST_F(DatabaseTestFixture, GetAllReturnNothing) {
   ON_CALL(*database, exec(testing::_)).WillByDefault(Return(nullptr));
 
   EXPECT_CALL(*database, exec(testing::_, testing::_)).Times(Exactly(1));
@@ -163,12 +179,14 @@ TEST_F(DatabaseTest, GetAllReturnNothing) {
   const auto instances =
       lcloud::create_db_instances<test_result_reader, test_row_t>("test",
                                                                   database);
-  const auto all = instances->get_all(std::chrono::milliseconds(1000));
+  const auto all = instances->get_all(std::chrono::milliseconds(1));
 
   EXPECT_EQ(all, std::list<std::string>({}));
 }
+#pragma endregion
 
-TEST_F(DatabaseTest, AddNewInstance) {
+#pragma region Test: AddNewInstance
+TEST_F(DatabaseTestFixture, AddNewInstance) {
   ON_CALL(*database, exec(StartsWith("update"))).WillByDefault(Return(nullptr));
 
   ON_CALL(*database, exec(StartsWith("insert"))).WillByDefault(Return(nullptr));
@@ -184,8 +202,10 @@ TEST_F(DatabaseTest, AddNewInstance) {
                                                                   database);
   instances->add("test");
 }
+#pragma endregion
 
-TEST_F(DatabaseTest, UpdateExistingInstance) {
+#pragma region Test: UpdateExistingInstance
+TEST_F(DatabaseTestFixture, UpdateExistingInstance) {
   test_result_t result{
       test_row_t{{"count", "1"}},
   };
@@ -206,3 +226,4 @@ TEST_F(DatabaseTest, UpdateExistingInstance) {
                                                                   database);
   instances->add("test");
 }
+#pragma endregion

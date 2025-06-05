@@ -48,7 +48,7 @@ class sql_discovery : public discovery {
               << std::endl;
 
     const auto published_observable =
-        observable<>::interval(std::chrono::milliseconds(1000),
+        observable<>::interval(interval / 2,
                                observe_on_new_thread()) |
         flat_map([this](int v) {
           return observable<>::create<std::nullptr_t>(
@@ -84,7 +84,8 @@ class sql_discovery : public discovery {
 };
 
 std::shared_ptr<discovery> create_postgres_discovery(
-    const std::string& service_name, const std::string& instance_name) {
-  return std::make_shared<sql_discovery>(service_name, instance_name);
+    const std::string& service_name, const std::string& instance_name,
+    const std::chrono::milliseconds& interval) {
+  return std::make_shared<sql_discovery>(service_name, instance_name, interval);
 }
 }  // namespace lcloud
