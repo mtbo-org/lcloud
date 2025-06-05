@@ -14,6 +14,11 @@ enable_testing()
 file(GLOB_RECURSE sources_production ../src/*.cpp)
 file(GLOB_RECURSE sources_test *.cpp)
 
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_COVERAGE}")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_COVERAGE}")
+SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_EXE_LINKER_FLAGS_COVERAGE}")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${CMAKE_SHARED_LINKER_FLAGS_COVERAGE}")
+
 add_executable(unit_tests ${sources_production} ${sources_test})
 
 target_link_libraries(unit_tests PRIVATE

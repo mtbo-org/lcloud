@@ -7,8 +7,9 @@
 // Created by bekamk on 03.06.2025.
 //
 
-#ifndef INSTANCES_H
-#define INSTANCES_H
+#ifndef INSTANCES_H_
+#define INSTANCES_H_
+#include <chrono>
 #include <functional>
 #include <list>
 #include <memory>
@@ -16,80 +17,92 @@
 
 #include "database.h"
 
-
 namespace lcloud {
-    template<class ResultReaderT, typename RowT>
-    class database;
+template <class ResultReaderT, typename RowT>
+class database;
 
-    template<class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
-    class instances {
-    public:
-        instances(std::string service) {
-            service_ = std::move(service);
-        }
+class instances {
+ public:
+  explicit instances(std::string service) { service_ = std::move(service); }
 
-        virtual ~instances() = default;
+  virtual ~instances() = default;
 
-        virtual void initialize() = 0;
+  virtual void initialize() = 0;
 
-        virtual std::list<std::string> get_all() = 0;
+  virtual std::list<std::string> get_all(
+      const std::chrono::milliseconds& interval) = 0;
 
-        virtual void add(std::string instance) = 0;
+  virtual void add(const std::string& instance) = 0;
 
-    protected:
-        std::string service_;
-    };
+ protected:
+  std::string service_;
+};
 
-    template<class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
-    class db_instances : public instances<ResultReaderT> {
-    public:
-        db_instances(const std::string &service,
-                     std::shared_ptr<database<ResultReaderT, RowT> > database)
-            : instances<ResultReaderT>(service), database_(std::move(database)) {
-        }
+template <class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
+class db_instances : public instances {
+ public:
+  db_instances(const std::string& service,
+               std::shared_ptr<database<ResultReaderT, RowT>> database)
+      : instances(service), database_(std::move(database)) {}
 
-        virtual std::string init_query_string() = 0;
+  virtual std::string init_query_string() = 0;
 
-        virtual std::string add_query_string() = 0;
+  virtual std::string get_all_query_string() = 0;
 
-        void initialize() noexcept(false) override {
-            database_->exec(init_query_string());
-        }
+  virtual std::string update_query_string(const std::string& instance_name) = 0;
 
-        std::list<std::string> get_all() override {
-            const auto rowset =
-                    database_->exec(add_query_string());
+  virtual std::string add_query_string(const std::string& instance_name) = 0;
 
-            if (rowset == nullptr) {
-                return {};
-            }
+  void initialize() noexcept(false) override {
+    database_->exec(init_query_string());
+  }
 
-            auto results = std::list<std::string>();
+  std::list<std::string> get_all(
+      const std::chrono::milliseconds& interval) override {
+    const auto result_reader = database_->exec(
+        get_all_query_string(), pqxx::params{service_, interval.count()});
 
-            for (const auto &row: *rowset) {
-                results.emplace_back(database_->read_string(row, "name"));
-            }
+    if (result_reader == nullptr) {
+      return {};
+    }
 
-            return results;
-        }
+    auto results = std::list<std::string>();
 
-        void add(std::string instance) override {
-        }
+    for (const auto& row : *result_reader) {
+      results.emplace_back(database_->read_string(row, "name"));
+    }
 
-    protected:
-        const std::shared_ptr<database<ResultReaderT, RowT> > database_;
-    };
+    return results;
+  }
 
+  void add(const std::string& instance) override {
+    const auto result_reader = database_->exec(
+        update_query_string(instance), pqxx::params{service_, instance});
 
-    template<class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
-    extern std::function<std::shared_ptr<instances<ResultReaderT, RowT> >(std::string service)> create_instances;
+    auto affected_rows = result_reader ? result_reader->affected_rows() : 0;
 
-    template<class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
-    extern std::function<std::shared_ptr<db_instances<ResultReaderT, RowT> >(
-        std::string service, std::shared_ptr<database<ResultReaderT, RowT> > database)> create_db_instances;
+    if (affected_rows < 1) {
+      database_->exec(add_query_string(instance),
+                      pqxx::params{service_, instance});
+    }
+  }
 
-    std::shared_ptr<instances<ResultReader<pqxx::result> > > create_postgres_instances(const std::string &service);
-}
+ protected:
+  const std::shared_ptr<database<ResultReaderT, RowT>> database_;
+};
 
+template <class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
+extern std::function<std::shared_ptr<instances>(std::string service)>
+    create_instances;
 
-#endif //INSTANCES_H
+template <class ResultReaderT, typename RowT = typename ResultReaderT::row_t>
+extern std::function<std::shared_ptr<db_instances<ResultReaderT, RowT>>(
+    std::string service,
+    std::shared_ptr<database<ResultReaderT, RowT>> database)>
+    create_db_instances;
+
+std::shared_ptr<instances> create_postgres_instances(
+    const std::string& service);
+}  // namespace lcloud
+
+#endif  // INSTANCES_H_

@@ -5,78 +5,86 @@
 
 #include "discovery.h"
 
-#include <iostream>
 #include <bits/ostream.tcc>
+#include <iostream>
 #include <rx.hpp>
 #include <utility>
+
 #include "repo/instances.h"
 
 namespace Rx {
-    using namespace rxcpp;
-    using namespace rxcpp::sources;
-    using namespace rxcpp::operators;
-    using namespace rxcpp::util;
-}
+using namespace rxcpp;
+using namespace rxcpp::sources;
+using namespace rxcpp::operators;
+using namespace rxcpp::util;
+}  // namespace Rx
 
 using namespace Rx;
 
-
 namespace lcloud {
-    class sql_discovery : public discovery {
-    public:
-        std::function<std::shared_ptr<instances<ResultReader<pqxx::result> > >(std::string service)>::result_type
-        instances_;
+class sql_discovery : public discovery {
+ public:
+  typedef result_reader<pqxx::result> reader_t;
+  typedef std::shared_ptr<instances> instances_ptr;
 
-        sql_discovery(const std::string &service_name,
-                      const std::string &instance_name) : discovery(service_name, instance_name) {
-            instances_ = create_instances<ResultReader<pqxx::result> >(service_name);
-        }
+ private:
+  instances_ptr instances_;
 
-        void initialize() const override {
-            instances_->initialize();
-        }
+ public:
+  sql_discovery(const std::string& service_name,
+                const std::string& instance_name,
+                const std::chrono::milliseconds& interval =
+                    std::chrono::milliseconds(1000))
+      : discovery(service_name, instance_name, interval) {
+    instances_ = create_instances<reader_t>(service_name);
+  }
 
-        void lookup() const override {
-        }
+  void initialize() const override { instances_->initialize(); }
 
-        composite_subscription ping() const override {
-            std::cout << "Ping to: " << service_name << ":" << instance_name << std::endl;
+  void lookup() const override {}
 
-            const auto published_observable = observable<>::interval(std::chrono::milliseconds(1000),
-                                                                     observe_on_new_thread())
-                                              | flat_map(
-                                                  [this](int v) {
-                                                      return
-                                                              observable<>::create<std::nullptr_t>(
-                                                                  [&](const subscriber<std::nullptr_t> &s) {
-                                                                      std::cout << "ADD" << std::endl;
-                                                                      instances_->add(instance_name);
-                                                                      s.on_completed();
-                                                                  });
-                                                  })
-                                              | on_error_resume_next([](std::exception_ptr ep) {
-                                                  printf("Resuming after: %s\n", what(std::move(ep)).c_str());
-                                                  return observable<>::just(nullptr);
-                                              })
-                                              | publish()
-                                              | ref_count();
+  [[nodiscard]] composite_subscription ping() const override {
+    std::cout << "Ping to: " << service_name << ":" << instance_name
+              << std::endl;
 
+    const auto published_observable =
+        observable<>::interval(std::chrono::milliseconds(1000),
+                               observe_on_new_thread()) |
+        flat_map([this](int v) {
+          return observable<>::create<std::nullptr_t>(
+              [&](const subscriber<std::nullptr_t>& s) {
+                std::cout << "ADD" << std::endl;
+                instances_->add(instance_name);
+                s.on_completed();
+              });
+        }) |
+        on_error_resume_next([](std::exception_ptr ep) {
+          printf("Resuming after: %s\n", what(std::move(ep)).c_str());
+          return observable<>::just(nullptr);
+        }) |
+        publish() | ref_count();
 
-            const auto subscription = published_observable.
-                    finally([] {
-                        std::cout << "unsubscribed" << std::endl << std::endl;
-                    }).
-                    subscribe(
-                        [](std::nullptr_t v) { printf("OnNext: \n"); },
-                        [](std::exception_ptr ep) {
-                            try { std::rethrow_exception(std::move(ep)); } catch (const std::exception &ex) {
-                                printf("OnError: %s\n", ex.what());
-                            }
-                        },
-                        [] { printf("OnCompleted\n"); }
-                    );
+    const auto subscription =
+        published_observable
+            .finally([] {
+              std::cout << "unsubscribed" << std::endl << std::endl;
+            })
+            .subscribe([](std::nullptr_t v) { printf("OnNext: \n"); },
+                       [](std::exception_ptr ep) {
+                         try {
+                           std::rethrow_exception(std::move(ep));
+                         } catch (const std::exception& ex) {
+                           printf("OnError: %s\n", ex.what());
+                         }
+                       },
+                       [] { printf("OnCompleted\n"); });
 
-            return subscription;
-        }
-    };
-} // lcloud
+    return subscription;
+  }
+};
+
+std::shared_ptr<discovery> create_postgres_discovery(
+    const std::string& service_name, const std::string& instance_name) {
+  return std::make_shared<sql_discovery>(service_name, instance_name);
+}
+}  // namespace lcloud

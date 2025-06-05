@@ -7,13 +7,17 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules/)
 
 option(CodeCoverage "CodeCoverage" ON)
 
+if (CodeCoverage MATCHES ON)
+    message(STATUS "Enable Code Coverage")
+    include(CodeCoverage)
+endif ()
+
 #set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ -lwsock32 -lws2_32 ${CMAKE_CXX_STANDARD_LIBRARIES}")
 #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive")
 
 find_package(rxcpp CONFIG REQUIRED)
 find_package(libpqxx CONFIG REQUIRED)
 
-add_subdirectory(test)
 
 add_library(lcloud_sql_discovery
         src/discovery.cpp
@@ -24,31 +28,15 @@ add_library(lcloud_sql_discovery
         src/repo/instances.h
 )
 
-add_executable(lcloud_sql_discovery_example example/main.cpp)
-
 target_compile_options(lcloud_sql_discovery PUBLIC ${RX_COMPILE_OPTIONS})
 target_compile_features(lcloud_sql_discovery PUBLIC ${RX_COMPILE_FEATURES})
 
 target_link_libraries(lcloud_sql_discovery PRIVATE rxcpp libpqxx::pqxx)
 target_include_directories(lcloud_sql_discovery PUBLIC rxcpp libpqxx::pqxx)
 
-target_include_directories(
-        lcloud_sql_discovery_example PRIVATE
-        src
-        rxcpp
-        libpqxx::pqxx
-)
-
-target_link_libraries(
-        lcloud_sql_discovery_example
-        lcloud_sql_discovery
-        rxcpp
-        libpqxx::pqxx
-)
-
 if (CodeCoverage MATCHES ON)
-    message(STATUS "Enable Code Coverage")
-    include(CodeCoverage)
     setup_target_for_coverage(${PROJECT_NAME}_coverage unit_tests coverage)
-
 endif ()
+
+add_subdirectory(test)
+add_subdirectory(example)

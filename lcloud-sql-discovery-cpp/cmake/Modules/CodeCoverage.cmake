@@ -32,10 +32,8 @@
 #				)
 #
 # 4. Build a Debug build:
-#	 cmake -DCMAKE_BUILD_TYPE=Debug ..
-#	 make
-#	 make my_coverage_target
-#
+#	 cmake -DCMAKE_BUILD_TYPE=Debug .. -GNinja
+#	 cmake --build . --target lcloud_sql_discovery_cpp_coverag
 #
 
 # Check prereqs
@@ -66,13 +64,14 @@ SET(CMAKE_C_FLAGS_COVERAGE
         CACHE STRING "Flags used by the C compiler during coverage builds."
         FORCE)
 SET(CMAKE_EXE_LINKER_FLAGS_COVERAGE
-        ""
+        "-lgcov --coverage"
         CACHE STRING "Flags used for linking binaries during coverage builds."
         FORCE)
 SET(CMAKE_SHARED_LINKER_FLAGS_COVERAGE
-        ""
+        "-lgcov --coverage"
         CACHE STRING "Flags used by the shared libraries linker during coverage builds."
         FORCE)
+
 MARK_AS_ADVANCED(
         CMAKE_CXX_FLAGS_COVERAGE
         CMAKE_C_FLAGS_COVERAGE
@@ -94,6 +93,8 @@ ENDIF () # NOT CMAKE_BUILD_TYPE STREQUAL "Debug"
 #   Pass them in list form, e.g.: "-j;2" for -j 2
 FUNCTION(SETUP_TARGET_FOR_COVERAGE _targetname _testrunner _outputname)
 
+    MESSAGE("Running " ${_testrunner} " in " ${CMAKE_BUILD_TYPE})
+
     IF (NOT LCOV_PATH)
         MESSAGE(FATAL_ERROR "lcov not found! Aborting...")
     ENDIF () # NOT LCOV_PATH
@@ -113,46 +114,12 @@ FUNCTION(SETUP_TARGET_FOR_COVERAGE _targetname _testrunner _outputname)
 
             # Capturing lcov counters and generating report
             COMMAND lcov --directory . --capture --ignore-errors inconsistent,mismatch --output-file ${_outputname}.info
-            COMMAND lcov --remove ${_outputname}.info 'build/*' 'tests/*' '/usr/*' --ignore-errors inconsistent,mismatch --output-file ${_outputname}.info.cleaned
-            #            COMMAND genhtml -o coverage/html ${_outputname}.info.cleaned
+            COMMAND lcov --remove ${_outputname}.info 'test/*' '/usr/*' --ignore-errors inconsistent,mismatch,empty --output-file ${_outputname}.info.cleaned
+            COMMAND genhtml -o coverage/html ${_outputname}.info.cleaned
             #            COMMAND ${CMAKE_COMMAND} -E remove ${_outputname}.info ${_outputname}.info.cleaned
 
-            #            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Resetting code coverage counters to zero.\nProcessing code coverage counters and generating report."
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+            COMMENT "Resetting code coverage counters to zero.\n${CMAKE_BINARY_DIR}\nProcessing code coverage counters and generating report."
     )
 
 ENDFUNCTION() # SETUP_TARGET_FOR_COVERAGE
-
-# Param _targetname     The name of new the custom make target
-# Param _testrunner     The name of the target which runs the tests
-# Param _outputname     cobertura output is generated as _outputname.xml
-# Optional fourth parameter is passed as arguments to _testrunner
-#   Pass them in list form, e.g.: "-j;2" for -j 2
-FUNCTION(SETUP_TARGET_FOR_COVERAGE_COBERTURA _targetname _testrunner _outputname)
-
-    IF (NOT PYTHON_EXECUTABLE)
-        MESSAGE(FATAL_ERROR "Python not found! Aborting...")
-    ENDIF () # NOT PYTHON_EXECUTABLE
-
-    IF (NOT GCOVR_PATH)
-        MESSAGE(FATAL_ERROR "gcovr not found! Aborting...")
-    ENDIF () # NOT GCOVR_PATH
-
-    ADD_CUSTOM_TARGET(${_targetname}
-
-            # Run tests
-            ${_testrunner} ${ARGV3}
-
-            # Running gcovr
-            COMMAND ${GCOVR_PATH} -x -r ${CMAKE_SOURCE_DIR} -e '${CMAKE_SOURCE_DIR}/tests/' -e '${CMAKE_SOURCE_DIR}/build/' -o ${_outputname}.xml
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            COMMENT "Running gcovr to produce Cobertura code coverage report."
-    )
-
-    # Show info where to find the report
-    ADD_CUSTOM_COMMAND(TARGET ${_targetname} POST_BUILD
-            COMMAND ;
-            COMMENT "Cobertura code coverage report saved in ${_outputname}.xml."
-    )
-
-ENDFUNCTION() # SETUP_TARGET_FOR_COVERAGE_COBERTURA

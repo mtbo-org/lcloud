@@ -7,32 +7,38 @@
 // Created by bekamk on 03.06.2025.
 //
 
-#ifndef SQL_DISCOVERY_H
-#define SQL_DISCOVERY_H
+#ifndef DISCOVERY_H_
+#define DISCOVERY_H_
 #include <memory>
 #include <rx-observable.hpp>
 #include <string>
 
 namespace lcloud {
-    class discovery {
-    public:
-        discovery(std::string service_name, std::string instance_name) : service_name(
-                                                                             std::move(service_name)),
-                                                                         instance_name(std::move(instance_name)) {
-        }
+class discovery {
+ public:
+  discovery(
+      std::string service_name, std::string instance_name,
+      std::chrono::milliseconds interval = std::chrono::milliseconds(1000))
+      : service_name(std::move(service_name)),
+        instance_name(std::move(instance_name)),
+        interval(std::move(interval)) {}
 
-        virtual ~discovery() = default;;
+  virtual ~discovery() = default;
 
-        virtual void initialize() const noexcept(false) = 0;
+  virtual void initialize() const noexcept(false) = 0;
 
-        virtual void lookup() const = 0;
+  virtual void lookup() const = 0;
 
-        [[nodiscard]] virtual rxcpp::composite_subscription ping() const = 0;
+  [[nodiscard]] virtual rxcpp::composite_subscription ping() const = 0;
 
-    protected:
-        const std::string service_name;
-        const std::string instance_name;
-    };
-} // lcloud
+ protected:
+  const std::string service_name;
+  const std::string instance_name;
+  const std::chrono::milliseconds interval;
+};
 
-#endif //SQL_DISCOVERY_H
+std::shared_ptr<discovery> create_postgres_discovery(
+    const std::string& service_name, const std::string& instance_name);
+}  // namespace lcloud
+
+#endif  // DISCOVERY_H_
