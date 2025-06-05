@@ -10,6 +10,7 @@
 #include <rx.hpp>
 #include <utility>
 
+#include "discovery.h"
 #include "repo/instances.h"
 
 namespace Rx {
@@ -41,45 +42,38 @@ class sql_discovery : public discovery {
 
   void initialize() const override { instances_->initialize(); }
 
-  void lookup() const override {}
+  [[nodiscard]] observable<lookup_t> lookup() const override {
+    std::cout << "Lookup on: " << service_name << ":" << instance_name
+              << std::endl;
 
-  [[nodiscard]] composite_subscription ping() const override {
+    return observable<>::create<lookup_t>([&](const subscriber<lookup_t>& s) {
+             auto all = instances_->get_all(interval);
+             s.on_next(all);
+             s.on_completed();
+           }) |
+           on_error_resume_next([this](std::exception_ptr ep) {
+             printf("Lookup resuming after: %s\n", what(std::move(ep)).c_str());
+             return observable<>::empty<lookup_t>();
+           }) |
+           delay(interval, observe_on_new_thread()) | repeat() | publish() |
+           ref_count() |
+           finally([] { std::cout << "Lookup unsubscribed" << std::endl; });
+  }
+
+  [[nodiscard]] observable<bool> ping() const override {
     std::cout << "Ping to: " << service_name << ":" << instance_name
               << std::endl;
 
-    const auto published_observable =
-        observable<>::interval(interval / 2,
-                               observe_on_new_thread()) |
-        flat_map([this](int v) {
-          return observable<>::create<std::nullptr_t>(
-              [&](const subscriber<std::nullptr_t>& s) {
-                std::cout << "ADD" << std::endl;
-                instances_->add(instance_name);
-                s.on_completed();
-              });
-        }) |
-        on_error_resume_next([](std::exception_ptr ep) {
-          printf("Resuming after: %s\n", what(std::move(ep)).c_str());
-          return observable<>::just(nullptr);
-        }) |
-        publish() | ref_count();
-
-    const auto subscription =
-        published_observable
-            .finally([] {
-              std::cout << "unsubscribed" << std::endl << std::endl;
-            })
-            .subscribe([](std::nullptr_t v) { printf("OnNext: \n"); },
-                       [](std::exception_ptr ep) {
-                         try {
-                           std::rethrow_exception(std::move(ep));
-                         } catch (const std::exception& ex) {
-                           printf("OnError: %s\n", ex.what());
-                         }
-                       },
-                       [] { printf("OnCompleted\n"); });
-
-    return subscription;
+    return observable<>::create<bool>([&](const subscriber<bool>& s) {
+             instances_->add(instance_name);
+             s.on_completed();
+           }) |
+           on_error_resume_next([this](std::exception_ptr ep) {
+             printf("Ping resuming after: %s\n", what(std::move(ep)).c_str());
+             return observable<>::empty<bool>();
+           }) |
+           delay(interval / 2, observe_on_new_thread()) | repeat() | publish() |
+           ref_count() | finally([] { std::cout << "Ping unsubscribed\n"; });
   }
 };
 

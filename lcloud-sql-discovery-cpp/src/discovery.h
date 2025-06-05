@@ -16,6 +16,8 @@
 namespace lcloud {
 class discovery {
  public:
+  typedef std::list<std::string> lookup_t;
+
   discovery(
       std::string service_name, std::string instance_name,
       std::chrono::milliseconds interval = std::chrono::milliseconds(1000))
@@ -27,9 +29,9 @@ class discovery {
 
   virtual void initialize() const noexcept(false) = 0;
 
-  virtual void lookup() const = 0;
+  [[nodiscard]] virtual rxcpp::observable<lookup_t> lookup() const = 0;
 
-  [[nodiscard]] virtual rxcpp::composite_subscription ping() const = 0;
+  [[nodiscard]] virtual rxcpp::observable<bool> ping() const = 0;
 
  protected:
   const std::string service_name;

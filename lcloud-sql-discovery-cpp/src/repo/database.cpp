@@ -9,7 +9,9 @@
 #include <pqxx/pqxx>
 
 class postgres_database final
-    : public lcloud::database<lcloud::result_reader<pqxx::result>, pqxx::row> {
+    : public lcloud::database<lcloud::result_reader<pqxx::result>> {
+  std::mutex mutex;
+
  public:
   explicit postgres_database(const std::string& connection_string) noexcept(
       false) {
@@ -24,6 +26,8 @@ class postgres_database final
   std::shared_ptr<lcloud::result_reader<pqxx::result>> exec(
       const std::string& query_string,
       const pqxx::params& params) noexcept(false) override {
+    std::lock_guard lock(mutex);
+
     pqxx::work tx{*connection_};
 
     try {
@@ -32,12 +36,17 @@ class postgres_database final
                             : tx.exec(query_string));
       tx.commit();
       return r;
+    } catch (pqxx::plpgsql_error const& e) {
+      std::cerr << "PL SQL error: " << e.what() << std::endl;
+      std::cerr << "PL Query was: " << e.query() << std::endl;
+      return nullptr;
     } catch (pqxx::sql_error const& e) {
       std::cerr << "SQL error: " << e.what() << std::endl;
       std::cerr << "Query was: " << e.query() << std::endl;
       return nullptr;
     } catch (std::exception const& e) {
-      std::cerr << "Error: " << e.what() << std::endl;
+      std::cerr << "DB error: " << e.what() << ", sql: " << query_string
+                << std::endl;
       return nullptr;
     }
   }

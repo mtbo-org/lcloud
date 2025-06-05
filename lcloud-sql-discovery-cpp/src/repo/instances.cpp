@@ -38,9 +38,11 @@ create index if not exists last_index
 )";
   }
 
-  std::string get_all_query_string() override {
+  std::string get_all_query_string(
+      const std::chrono::milliseconds& interval) override {
     return "select name from instances where service = $1 AND last > now() - "
-           "interval '$2 milliseconds'";
+           "interval '" +
+           std::to_string(interval.count()) + " milliseconds'";
   }
 
   std::string update_query_string(const std::string& instance_name) override {

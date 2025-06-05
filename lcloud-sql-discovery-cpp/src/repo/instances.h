@@ -47,7 +47,8 @@ class db_instances : public instances {
 
   virtual std::string init_query_string() = 0;
 
-  virtual std::string get_all_query_string() = 0;
+  virtual std::string get_all_query_string(
+      const std::chrono::milliseconds& interval) = 0;
 
   virtual std::string update_query_string(const std::string& instance_name) = 0;
 
@@ -59,8 +60,8 @@ class db_instances : public instances {
 
   std::list<std::string> get_all(
       const std::chrono::milliseconds& interval) override {
-    const auto result_reader = database_->exec(
-        get_all_query_string(), pqxx::params{service_, interval.count()});
+    const auto result_reader =
+        database_->exec(get_all_query_string(interval), pqxx::params{service_});
 
     if (result_reader == nullptr) {
       return {};
