@@ -37,7 +37,7 @@ RUN make install
 
 RUN apt-get install -y libpq-dev lcov gcovr
 WORKDIR /app/libpqxx/build
-RUN cmake ..
+RUN cmake -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC" ..
 RUN make -j4
 RUN make install
 
