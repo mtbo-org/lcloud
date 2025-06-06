@@ -37,8 +37,7 @@ public class SqlDiscoveryExample {
           SqlDiscoveryExample.class.getClassLoader().getResourceAsStream("logging.properties")) {
         LogManager.getLogManager().readConfiguration(is);
 
-      } catch (Throwable e) {
-        e.printStackTrace();
+      } catch (Throwable ignored) {
       }
     }
 
@@ -51,13 +50,7 @@ public class SqlDiscoveryExample {
                   ("org.mtbo.lcloud.discovery.level=" + level.get())
                       .getBytes(StandardCharsets.UTF_8))) {
             LogManager.getLogManager()
-                .updateConfiguration(
-                    stream,
-                    s1 -> {
-                      return (o, n) -> {
-                        return n != null ? n : o;
-                      };
-                    });
+                .updateConfiguration(stream, s1 -> (o, n) -> n != null ? n : o);
           } catch (IOException e) {
             throw new RuntimeException(e);
           }
@@ -84,7 +77,7 @@ public class SqlDiscoveryExample {
 
     final var connectionString =
         Optional.ofNullable(System.getenv("CONNECTION_STRING"))
-            .orElse("r2dbc:postgresql://user:user@localhost:5444/demo");
+            .orElse("r2dbc:postgresql://user:user@localhost:5432/demo");
 
     var discovery =
         new SqlDiscovery(
