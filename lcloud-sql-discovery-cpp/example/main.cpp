@@ -21,10 +21,9 @@ namespace rxu = rxcpp::util;
 
 typedef lcloud::result_reader<pqxx::result> reader_t;
 
-void DI() {
-  lcloud::create_database<reader_t> = [] {
-    return lcloud::create_postgres_database(
-        "postgresql://user:user@localhost:5432/demo");
+void DI(const std::string& connection_string) {
+  lcloud::create_database<reader_t> = [connection_string] {
+    return lcloud::create_postgres_database(connection_string);
   };
 
   lcloud::create_instances<reader_t> = [](const std::string& service) {
@@ -56,13 +55,18 @@ static std::string to_str(
 }
 
 int main() {
-  DI();
+  const auto connection_string =
+      std::string(std::getenv("CONNECTION_STRING")
+                      ? std::getenv("CONNECTION_STRING")
+                      : "postgresql://user:user@localhost:5432/demo");
 
   const auto service_name = std::string(
       std::getenv("SERVICE_NAME") ? std::getenv("SERVICE_NAME") : "lcloud");
 
   const auto instance_name = std::string(
       std::getenv("HOSTNAME") ? std::getenv("HOSTNAME") : "localhost");
+
+  DI(connection_string);
 
   const auto discovery = lcloud::create_postgres_discovery(
       service_name, instance_name, std::chrono::milliseconds(250));

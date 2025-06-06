@@ -10,7 +10,6 @@
 
 #include "../src/repo/database.h"
 #include "../src/repo/instances.h"
-#include "catch2/catch_all.hpp"
 #include "rxcpp/rx-test.hpp"
 
 #pragma region gmock using

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config-cpp
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: "demo"
+  POSTGRES_USER: "user"
+  POSTGRES_PASSWORD: "user"
