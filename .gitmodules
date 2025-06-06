@@ -1,0 +1,9 @@
+[submodule "lcloud-sql-discovery-cpp/libpqxx"]
+	path = lcloud-sql-discovery-cpp/libpqxx
+	url = git@github.com:PROGrand/libpqxx.git
+[submodule "lcloud-sql-discovery-cpp/RxCpp"]
+	path = lcloud-sql-discovery-cpp/RxCpp
+	url = git@github.com:PROGrand/RxCpp.git
+[submodule "lcloud-sql-discovery-cpp/googletest"]
+	path = lcloud-sql-discovery-cpp/googletest
+	url = git@github.com:PROGrand/googletest.git
