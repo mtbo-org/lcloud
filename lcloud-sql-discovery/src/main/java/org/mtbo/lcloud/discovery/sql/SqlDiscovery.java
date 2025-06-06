@@ -9,6 +9,7 @@ import io.r2dbc.spi.ConnectionFactories;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Calendar;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -46,7 +47,7 @@ public class SqlDiscovery {
     return template
         .getDatabaseClient()
         .sql(
-            """
+"""
 create table if not exists instances
 (
     id      uuid not null
@@ -73,12 +74,10 @@ create index if not exists last_index
    */
   public Flux<Boolean> ping(Function<Throwable, Mono<Boolean>> fallback) {
     return createTemplate()
-        .repeat()
-        .concatMap(
-            template ->
-                Flux.from(
-                    Mono.delay(config.updateInterval.dividedBy(2))
-                        .flatMap(aLong -> update(template).onErrorResume(fallback))));
+        .flatMap(this::update)
+        .onErrorResume(fallback)
+        .flatMap(aBoolean -> Mono.delay(config.updateInterval.dividedBy(2)).map(aLong -> aBoolean))
+        .repeat();
   }
 
   /**
@@ -88,13 +87,11 @@ create index if not exists last_index
    * @return set of instances names flux
    */
   public Flux<Set<String>> lookup(Function<Throwable, Mono<Set<String>>> fallback) {
-    return Flux.from(
-        createTemplate()
-            .repeat()
-            .concatMap(
-                template ->
-                    Mono.delay(config.updateInterval)
-                        .flatMap(aLong -> request(template).onErrorResume(fallback))));
+    return createTemplate()
+        .flatMap(this::request)
+        .onErrorResume(fallback)
+        .flatMap(strings -> Mono.delay(config.updateInterval).map(aLong -> strings))
+        .repeat();
   }
 
   /**
@@ -148,13 +145,22 @@ create index if not exists last_index
   }
 
   private Mono<Set<String>> request(R2dbcEntityTemplate template) {
-    var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
     return template
-        .select(Instances.class)
-        .matching(query(where("service").is(config.serviceName).and("last").greaterThan(threshold)))
+        .getDatabaseClient()
+        .sql(
+            "select name from instances where service = :service AND last > now() - interval '"
+                + config.updateInterval.toMillis()
+                + " milliseconds'")
+        .bind("service", config.serviceName)
+        .fetch()
         .all()
-        .map(Instances::name)
-        .collect(Collectors.toSet());
+        .subscribeOn(Schedulers.boundedElastic())
+        .map(stringObjectMap -> (String) stringObjectMap.get("name"))
+        .collect(Collectors.toSet())
+        .doOnNext(
+            rows ->
+                System.out.printf(
+                    "[%1$tH:%<tM:%<tS.%<tL] Select: %2$s\n", Calendar.getInstance(), rows));
   }
 
   private Mono<Boolean> update(R2dbcEntityTemplate template) {
@@ -165,6 +171,10 @@ create index if not exists last_index
         .bind("name", config.instanceName)
         .fetch()
         .rowsUpdated()
+        .doOnNext(
+            rows ->
+                System.out.printf(
+                    "[%1$tH:%<tM:%<tS.%<tL] Ping: %2$d\n", Calendar.getInstance(), rows))
         .flatMap(aLong -> aLong == 1 ? Mono.just(true) : insert(template));
   }
 
