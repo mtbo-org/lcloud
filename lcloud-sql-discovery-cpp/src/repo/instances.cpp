@@ -40,9 +40,8 @@ create index if not exists last_index
 
   std::string get_all_query_string(
       const std::chrono::milliseconds& interval) override {
-    return "select name from instances where service = $1 AND last > now() - "
-           "interval '" +
-           std::to_string(interval.count()) + " milliseconds'";
+    return "select name from instances where service = $1 AND EXTRACT (EPOCH "
+           "from now() - last) < $2";
   }
 
   std::string update_query_string(const std::string& instance_name) override {

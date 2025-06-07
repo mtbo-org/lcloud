@@ -61,7 +61,8 @@ class db_instances : public instances {
   std::list<std::string> get_all(
       const std::chrono::milliseconds& interval) override {
     const auto result_reader =
-        database_->exec(get_all_query_string(interval), pqxx::params{service_});
+        database_->exec(get_all_query_string(interval),
+                        pqxx::params{service_, interval.count() / 1000.0});
 
     if (result_reader == nullptr) {
       return {};
