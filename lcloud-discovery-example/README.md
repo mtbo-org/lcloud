@@ -11,6 +11,7 @@ Start minikube:
 
 ```shell
 minikube start
+minikube addons enable metrics-server
 minikube docker-env
 
 @FOR /f "tokens=*" %i IN ('minikube -p minikube docker-env --shell cmd') DO @%i 
@@ -56,25 +57,25 @@ cd  /d/work/java/org.mtbo.lcloud/lcloud-discovery-example
 HOSTNAME="AAA" \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-discovery-example-3.1.2-M6-all.jar
+    -jar build/libs/lcloud-discovery-example-3.1.2-M7-all.jar
     
 cd  /d/work/java/org.mtbo.lcloud/lcloud-discovery-example
 HOSTNAME="BBB" \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-discovery-example-3.1.2-M6-all.jar
+    -jar build/libs/lcloud-discovery-example-3.1.2-M7-all.jar
     
 cd  /d/work/java/org.mtbo.lcloud/lcloud-discovery-example
 HOSTNAME="XXX" \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-discovery-example-3.1.2-M6-all.jar
+    -jar build/libs/lcloud-discovery-example-3.1.2-M7-all.jar
     
 cd  /d/work/java/org.mtbo.lcloud/lcloud-discovery-example
 HOSTNAME="YYY" \
   java -Dorg.mtbo.lcloud.discovery.level=INFO \
     -Dreactor.schedulers.defaultBoundedElasticOnVirtualThreads=true \
-    -jar build/libs/lcloud-discovery-example-3.1.2-M6-all.jar
+    -jar build/libs/lcloud-discovery-example-3.1.2-M7-all.jar
     
 ```
 

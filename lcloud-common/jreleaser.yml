@@ -1,8 +1,8 @@
 project:
-  name: lcloud-udp-discovery
+  name: lcloud-common
   copyright: 2025 @ Vladimir E. Koltunov
-  description: lcloud
-  longDescription: Lightweight java implementation of cloud discovery
+  description: lcloud common library
+  longDescription: Lightweight java implementation of cloud utilities common library
   links:
     homepage: https://github.com/mtbo-org/lcloud
   authors:
@@ -17,8 +17,8 @@ project:
     java:
       version: '21'
       groupId: org.mtbo.lcloud
-      artifactId: lcloud-udp-discovery
-      mainModule: org.mtbo.lcloud.discovery
+      artifactId: lcloud-common
+      mainModule: org.mtbo.lcloud
 
 signing:
   active: ALWAYS
@@ -26,7 +26,7 @@ signing:
   verify: true
 
 distributions:
-  lcloud-udp-discovery:
+  lcloud-sql-discovery:
     type: SINGLE_JAR
     artifacts:
       - path: build/libs/{{distributionName}}-{{projectVersion}}.jar
@@ -63,20 +63,3 @@ deploy:
         sourceJar: true
         javadocJar: true
         retryDelay: 60
-        deploymentId: 67e1e05f-104b-415f-9423-659babb03b44
-#    nexus2:
-#      snapshot-deploy:
-#        active: SNAPSHOT
-#        url: https://central.sonatype.com/repository/maven-snapshots/
-#        snapshotUrl: https://central.sonatype.com/repository/maven-snapshots/
-#        applyMavenCentralRules: true
-#        snapshotSupported: true
-#        closeRepository: true
-#        releaseRepository: true
-#        stagingRepositories:
-#          - build/staging-deploy
-#        authorization: BASIC
-#        sign: true
-#        checksums: true
-#        sourceJar: true
-#        javadocJar: true

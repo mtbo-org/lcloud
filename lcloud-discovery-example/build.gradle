@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'org.mtbo.lcloud'
-version = '3.1.2-M6'
+version = '3.1.2-M7'
 
 apply plugin: 'application'
 mainClassName = 'SqlDiscoveryExample'
@@ -19,17 +19,18 @@ configurations.configureEach {
 }
 
 dependencies {
-    runtimeOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
-    runtimeOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
-    runtimeOnly "io.netty:netty-handler:4.2.1.Final"
-    runtimeOnly 'com.google.code.findbugs:jsr305:3.0.2'
-    runtimeOnly 'org.slf4j:slf4j-jdk14:2.0.17'
-
+    implementation project(':lcloud-common')
     implementation project(':lcloud-udp-discovery')
     implementation project(':lcloud-sql-discovery')
     implementation "io.projectreactor:reactor-core:$reactorVersion"
     testImplementation platform("org.junit:junit-bom:$junitVersion")
     testImplementation 'org.junit.jupiter:junit-jupiter'
+
+    runtimeOnly "org.springframework.data:spring-data-r2dbc:$r2dbcVersion"
+    runtimeOnly "org.postgresql:r2dbc-postgresql:$r2dbcPostgresVersion"
+    runtimeOnly "io.netty:netty-handler:4.2.1.Final"
+    runtimeOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    runtimeOnly 'org.slf4j:slf4j-jdk14:2.0.17'
 }
 
 test {

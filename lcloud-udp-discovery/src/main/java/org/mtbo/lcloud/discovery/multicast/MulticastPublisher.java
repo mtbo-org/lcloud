@@ -6,8 +6,9 @@ import java.io.IOException;
 import java.net.*;
 import java.time.Duration;
 import java.util.logging.Level;
-import org.mtbo.lcloud.discovery.logging.FileLineLogger;
+import org.mtbo.lcloud.logging.FileLineLogger;
 
+/** Advertise instance on multicast network. */
 public class MulticastPublisher implements Runnable {
 
   final FileLineLogger logger =
@@ -15,6 +16,11 @@ public class MulticastPublisher implements Runnable {
 
   private final Config config;
 
+  /**
+   * Construct with config.
+   *
+   * @param config config
+   */
   public MulticastPublisher(Config config) {
     this.config = config;
   }
@@ -92,6 +98,15 @@ public class MulticastPublisher implements Runnable {
     }
   }
 
+  /**
+   * Publisher config
+   *
+   * @param serviceName service name
+   * @param instanceName this instance name
+   * @param addr address
+   * @param port port
+   * @param interval publish interval
+   */
   public record Config(
       String serviceName, String instanceName, String addr, int port, Duration interval) {}
 }

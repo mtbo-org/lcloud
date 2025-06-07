@@ -8,7 +8,9 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mtbo.lcloud.discovery.sql.AutoDisposable;
 import org.mtbo.lcloud.discovery.sql.SqlDiscovery;
+import org.mtbo.lcloud.logging.FileLineLogger;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,7 +23,12 @@ public class SqlDiscoveryTest {
   public static final String INSTANCE_NAME = "first";
   static final String connectionString =
       "r2dbc:h2:mem:///test?options=DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE";
+  private static final Duration quant = Duration.ofMillis(50);
   static SqlDiscovery.Config config;
+
+  static {
+    FileLineLogger.init(SqlDiscoveryTest.class);
+  }
 
   @BeforeAll
   static void setUpBeforeClass() {
@@ -30,13 +37,12 @@ public class SqlDiscoveryTest {
   }
 
   private static SqlDiscovery.Config createConfig(String serviceName, String instanceName) {
-    return new SqlDiscovery.Config(
-        connectionString, serviceName, instanceName, Duration.ofMillis(50));
+    return new SqlDiscovery.Config(connectionString, serviceName, instanceName, quant);
   }
 
   @BeforeEach
   void setUp() {
-    var connectionFactory = ConnectionFactories.get(connectionString);
+    final var connectionFactory = ConnectionFactories.get(connectionString);
 
     R2dbcEntityTemplate template = new R2dbcEntityTemplate(connectionFactory);
 
@@ -53,7 +59,7 @@ public class SqlDiscoveryTest {
   @Test
   public void testCanInitialize() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
     StepVerifier.withVirtualTime(discovery::initialize).expectNext(true).verifyComplete();
   }
@@ -61,40 +67,42 @@ public class SqlDiscoveryTest {
   @Test
   public void testCanPing() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
     discovery.initialize().block();
 
-    assertEquals(Boolean.TRUE, discovery.ping(Mono::error).take(1).blockLast());
+    assertEquals(Boolean.TRUE, discovery.ping(Mono::error).block());
   }
 
   @Test
   public void testCanLookupSelf() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
     discovery.initialize().block();
 
-    var pinger = discovery.ping(Mono::error).subscribe();
+    discovery.ping(Mono::error).block();
 
     assertEquals(Set.of("first"), discovery.lookup(Mono::error).take(1).blockLast());
-
-    pinger.dispose();
   }
 
   @Test
   public void testCanClean() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
     discovery.initialize().block();
 
-    discovery.ping(Mono::error).take(1).blockLast();
+    try (final var ignored = new AutoDisposable(discovery.ping(Mono::error).repeat().subscribe())) {
 
-    assertEquals(0, discovery.clean(Mono::error).block());
+      Mono.delay(quant.dividedBy(2)).block();
 
-    assertEquals(
-        1, Mono.delay(Duration.ofMillis(100)).flatMap(x -> discovery.clean(Mono::error)).block());
+      assertEquals(0, discovery.clean().block());
+    }
+
+    Mono.delay(quant.plus(quant.dividedBy(2))).block();
+
+    assertEquals(1, discovery.clean().block());
 
     assertEquals(Set.of(), discovery.lookup(Mono::error).take(1).blockLast());
   }
@@ -102,69 +110,76 @@ public class SqlDiscoveryTest {
   @Test
   public void testCanCleanAll() {
 
-    var configOther = createConfig(SERVICE_NAME, "other");
+    final var configOther = createConfig(SERVICE_NAME, "other");
 
-    var discovery1 = new SqlDiscovery(config);
-    var discovery2 = new SqlDiscovery(configOther);
+    final var discovery1 = new SqlDiscovery(config);
+    final var discovery2 = new SqlDiscovery(configOther);
 
-    Flux.concat(
+    Flux.merge(
             discovery1.initialize().publishOn(Schedulers.boundedElastic()),
             discovery2.initialize().publishOn(Schedulers.boundedElastic()))
         .blockLast();
 
-    Flux.concat(
-            discovery1.ping(Mono::error).take(1).publishOn(Schedulers.boundedElastic()),
-            discovery2.ping(Mono::error).take(1).publishOn(Schedulers.boundedElastic()))
-        .blockLast();
+    @SuppressWarnings("ReactiveStreamsUnusedPublisher")
+    Flux<Boolean> pinger =
+        Flux.merge(discovery1.ping(Mono::error).repeat(), discovery2.ping(Mono::error).repeat())
+            .publishOn(Schedulers.boundedElastic());
 
-    assertEquals(0, discovery1.cleanAll(Mono::error).block());
+    try (final var ignored = new AutoDisposable(pinger.subscribe())) {
 
-    assertEquals(
-        2,
-        Mono.delay(Duration.ofMillis(100)).flatMap(x -> discovery1.cleanAll(Mono::error)).block());
+      Mono.delay(quant.dividedBy(2)).block();
 
-    assertEquals(Set.of(), discovery1.lookup(Mono::error).take(1).blockLast());
-    assertEquals(Set.of(), discovery2.lookup(Mono::error).take(1).blockLast());
+      assertEquals(0, discovery1.cleanAll(Mono::error).block());
+    }
+
+    Mono.delay(quant.plus(quant.dividedBy(2))).block();
+
+    assertEquals(2, discovery1.cleanAll(Mono::error).block());
+    assertEquals(Set.of(), discovery1.lookup(Mono::error).blockFirst());
   }
 
   @Test
   public void testCanLookupOther() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
-    var configOther = createConfig(SERVICE_NAME, "other");
+    final var configOther = createConfig(SERVICE_NAME, "other");
 
-    var discoveryOther = new SqlDiscovery(configOther);
+    final var discoveryOther = new SqlDiscovery(configOther);
 
     discovery.initialize().block();
     discoveryOther.initialize().block();
 
-    var pinger = discovery.ping(Mono::error).subscribe();
-    var pingerOther = discoveryOther.ping(Mono::error).subscribe();
+    try (final var ignored =
+        new AutoDisposable(
+            Flux.merge(discovery.ping(Mono::error), discoveryOther.ping(Mono::error))
+                .subscribe())) {
 
-    assertEquals(Set.of(INSTANCE_NAME, "other"), discovery.lookup(Mono::error).take(1).blockLast());
+      Mono.delay(quant.dividedBy(2)).block();
 
-    pinger.dispose();
-    pingerOther.dispose();
+      assertEquals(
+          Set.of(INSTANCE_NAME, "other"), discovery.lookup(Mono::error).take(1).blockLast());
+    }
   }
 
   @Test
   public void testDoesNotInterfere() {
 
-    var discovery = new SqlDiscovery(config);
+    final var discovery = new SqlDiscovery(config);
 
-    var configOther = createConfig("other", INSTANCE_NAME);
+    final var configOther = createConfig("other", INSTANCE_NAME);
 
-    var discoveryOther = new SqlDiscovery(configOther);
+    final var discoveryOther = new SqlDiscovery(configOther);
 
     discovery.initialize().block();
 
-    var pinger = discovery.ping(Mono::error).subscribe();
-    var pingerOther = discoveryOther.ping(Mono::error).subscribe();
+    try (final var ignored =
+        new AutoDisposable(
+            Flux.merge(discovery.ping(Mono::error), discoveryOther.ping(Mono::error))
+                .subscribe())) {
 
-    assertEquals(Set.of(INSTANCE_NAME), discovery.lookup(Mono::error).take(1).blockLast());
-
-    pinger.dispose();
-    pingerOther.dispose();
+      Mono.delay(quant.dividedBy(2)).block();
+      assertEquals(Set.of(INSTANCE_NAME), discovery.lookup(Mono::error).take(1).blockLast());
+    }
   }
 }

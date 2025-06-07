@@ -4,12 +4,13 @@ plugins {
     id 'signing'
 }
 
-
 def javaProjects = [
+        project(":lcloud-common"),
         project(":lcloud-sql-discovery"),
         project(":lcloud-udp-discovery"),
         project(":lcloud-discovery-example"),
 ]
+
 
 ext {
     assertjVersion = '3.27.3'

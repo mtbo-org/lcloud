@@ -8,4 +8,4 @@
 
 rootProject.name = 'org.mtbo.lcloud'
 
-include 'lcloud-udp-discovery', 'lcloud-sql-discovery', 'lcloud-discovery-example'
+include 'lcloud-common', 'lcloud-udp-discovery', 'lcloud-sql-discovery', 'lcloud-discovery-example'

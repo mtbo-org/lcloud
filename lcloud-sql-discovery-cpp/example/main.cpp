@@ -69,7 +69,7 @@ int main() {
   DI(connection_string);
 
   const auto discovery = lcloud::create_postgres_discovery(
-      service_name, instance_name, std::chrono::milliseconds(250));
+      service_name, instance_name, std::chrono::milliseconds(5000));
 
   discovery->initialize();
 

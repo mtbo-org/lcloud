@@ -1,16 +1,14 @@
 /* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Calendar;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.logging.LogManager;
-import org.mtbo.lcloud.discovery.logging.FileLineLogger;
+import org.mtbo.lcloud.discovery.sql.AutoDisposable;
 import org.mtbo.lcloud.discovery.sql.SqlDiscovery;
+import org.mtbo.lcloud.logging.FileLineLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import sun.misc.Signal;
@@ -26,35 +24,7 @@ public class SqlDiscoveryExample {
   static FileLineLogger logger;
 
   static {
-    var logFile =
-        Optional.ofNullable(System.getProperty("java.util.logging.config.file")).orElse("");
-
-    var skipConfig =
-        Optional.ofNullable(System.getProperty("lcloud.skip.logging.config")).orElse("false");
-
-    if (logFile.isEmpty() && !skipConfig.equals("true")) {
-      try (var is =
-          SqlDiscoveryExample.class.getClassLoader().getResourceAsStream("logging.properties")) {
-        LogManager.getLogManager().readConfiguration(is);
-
-      } catch (Throwable ignored) {
-      }
-    }
-
-    var level = Optional.ofNullable(System.getProperty("org.mtbo.lcloud.discovery.level"));
-
-    level.ifPresent(
-        s -> {
-          try (var stream =
-              new ByteArrayInputStream(
-                  ("org.mtbo.lcloud.discovery.level=" + level.get())
-                      .getBytes(StandardCharsets.UTF_8))) {
-            LogManager.getLogManager()
-                .updateConfiguration(stream, s1 -> (o, n) -> n != null ? n : o);
-          } catch (IOException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    FileLineLogger.init(SqlDiscoveryExample.class);
 
     logger = FileLineLogger.getLogger(SqlDiscoveryExample.class.getName());
   }
@@ -82,13 +52,13 @@ public class SqlDiscoveryExample {
     var discovery =
         new SqlDiscovery(
             new SqlDiscovery.Config(
-                connectionString, serviceName, instanceName, Duration.ofMillis(250)));
+                connectionString, serviceName, instanceName, Duration.ofMillis(500)));
 
     if (Boolean.FALSE.equals(
         discovery
             .initialize()
             .onErrorResume(
-                throwable -> {
+                (Throwable throwable) -> {
                   logger.severe("Unable to connect to db" /*, throwable*/);
                   return Mono.just(false);
                 })
@@ -98,25 +68,27 @@ public class SqlDiscoveryExample {
 
     discovery.cleanAll(Mono::error).block();
 
-    var pingSubscription =
+    var latch = new CountDownLatch(1);
+
+    @SuppressWarnings("ReactiveStreamsUnusedPublisher")
+    final var ping =
         discovery
             .ping(
-                throwable -> {
+                (Throwable throwable) -> {
                   logger.severe("Ping error: " + throwable.getMessage(), throwable);
                   return Mono.empty();
                 })
-            //            .doOnNext(System.out::println)
-            .subscribe();
-
-    var lookupSubscription =
+            .repeat();
+    @SuppressWarnings("ReactiveStreamsUnusedPublisher")
+    final var lookup =
         discovery
             .lookup(
-                throwable -> {
+                (Throwable throwable) -> {
                   logger.severe("Lookup error: " + throwable.getMessage(), throwable);
                   return Mono.empty();
                 })
             .doOnNext(
-                instances -> {
+                (Set<String> instances) -> {
                   synchronized (FileLineLogger.class) {
                     logger.info("****************************************************");
                     logger.info(
@@ -125,44 +97,37 @@ public class SqlDiscoveryExample {
                             Calendar.getInstance(), serviceName, instances.size()));
                     instances.stream()
                         .sorted()
-                        .forEach(message -> logger.info(String.format("%1$-52s", message)));
+                        .forEach(
+                            (String message) -> logger.info(String.format("%1$-52s", message)));
                     logger.info("****************************************************");
                   }
-                })
-            .subscribe();
-
-    var latch = new CountDownLatch(1);
-
-    // region Garbage collector forcing
-
-    var gcSubscription =
+                });
+    @SuppressWarnings("ReactiveStreamsUnusedPublisher")
+    final var gc =
         Flux.interval(Duration.ofSeconds(1))
             .flatMap(
-                aLong -> {
+                (Long aLong) -> {
                   System.gc();
                   return Mono.just(true);
-                })
-            .subscribe();
-    // endregion
+                });
+    try (final var ignored = new AutoDisposable(Flux.merge(ping, lookup, gc).subscribe())) {
+      // endregion
 
-    SignalHandler handler =
-        sig -> {
-          logger.info("Shutting down...");
+      SignalHandler handler =
+          (Signal sig) -> {
+            logger.info("Shutting down...");
 
-          latch.countDown();
-        };
+            latch.countDown();
+          };
 
-    Signal.handle(new Signal("INT"), handler);
+      Signal.handle(new Signal("INT"), handler);
 
-    logger.info("Program started. Press Ctrl+C to test the blocker.");
+      logger.info("Program started. Press Ctrl+C to test the blocker.");
 
-    latch.await();
+      latch.await();
+    }
 
-    lookupSubscription.dispose();
-    pingSubscription.dispose();
-    gcSubscription.dispose();
-
-    discovery.clean(Mono::error).block();
+    discovery.clean().block();
 
     logger.info("Bye!");
   }

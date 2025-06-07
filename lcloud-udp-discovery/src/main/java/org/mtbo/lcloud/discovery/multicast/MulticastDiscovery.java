@@ -8,12 +8,13 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.function.Function;
-import org.mtbo.lcloud.discovery.logging.FileLineLogger;
+import org.mtbo.lcloud.logging.FileLineLogger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 import reactor.core.scheduler.Schedulers;
 
+/** Multicast discovery */
 public class MulticastDiscovery {
   final FileLineLogger logger =
       FileLineLogger.getLogger(MulticastDiscovery.class.getName(), "<<< SVC  ", 32);
@@ -30,10 +31,21 @@ public class MulticastDiscovery {
 
   //      Schedulers.newParallel("receiver-sched", Schedulers.DEFAULT_POOL_SIZE);
 
+  /**
+   * construct with config
+   *
+   * @param config config
+   * @throws SocketException in case of any error
+   */
   public MulticastDiscovery(Config config) throws SocketException {
     this.config = config;
   }
 
+  /**
+   * Collect ping requests
+   *
+   * @return list of instances
+   */
   public Flux<HashSet<String>> receive() {
     return bindSockets(
             pair ->
@@ -201,8 +213,24 @@ public class MulticastDiscovery {
         .publishOn(Schedulers.boundedElastic());
   }
 
+  /**
+   * Multicast discovery config
+   *
+   * @param serviceName service name
+   * @param multicastAddr address
+   * @param multicastPort port
+   * @param interval lookup interval
+   */
   public record Config(
       String serviceName, String multicastAddr, int multicastPort, Duration interval) {}
 
+  /**
+   * just Pair
+   *
+   * @param t1 first
+   * @param t2 second
+   * @param <T1> type of first
+   * @param <T2> type of second
+   */
   public record Pair<T1, T2>(T1 t1, T2 t2) {}
 }

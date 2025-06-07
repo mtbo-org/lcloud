@@ -13,5 +13,4 @@ target_include_directories(lcloud_sql_discovery_example PRIVATE
 target_link_libraries(lcloud_sql_discovery_example PRIVATE
         lcloud_sql_discovery
         rxcpp
-        libpqxx::pqxx
 )

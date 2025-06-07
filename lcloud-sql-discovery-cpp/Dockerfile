@@ -1,43 +1,28 @@
-FROM ubuntu:24.04 AS build
+FROM ubuntu:plucky-20250521 AS distro
 
-RUN apt-get update
+RUN apt-get update && \
+  apt-get install -y libpq-dev
 
-RUN apt-get install -y ca-certificates gpg wget
+FROM distro AS build
 
-RUN test -f /usr/share/doc/kitware-archive-keyring/copyright || \
-    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
-
-RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null
-
-RUN apt-get update
-
-RUN apt-get install -y kitware-archive-keyring
-
-RUN apt-get install -y cmake
-
-RUN apt-get install -y software-properties-common
-
-RUN add-apt-repository ppa:ubuntu-toolchain-r/test
-
-RUN apt-get update
-
-RUN apt-get install -y gcc-14 g++-14
-
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 14 --slave /usr/bin/g++ g++ /usr/bin/g++-14
+RUN apt-get install -y cmake gcc g++
 
 ADD ./RxCpp /app/RxCpp
 ADD ./libpqxx /app/libpqxx
 ADD ./googletest /app/googletest
 
 WORKDIR /app/RxCpp/build
-RUN cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+RUN cmake -G"Unix Makefiles" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+    -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+    -DCMAKE_BUILD_TYPE=Release -DRXCPP_DISABLE_TESTS_AND_EXAMPLES=1 ../projects/CMake
 RUN make -j4
 RUN make install
 
 
 RUN apt-get install -y libpq-dev lcov gcovr
 WORKDIR /app/libpqxx/build
-RUN cmake -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC" ..
+RUN cmake -G"Unix Makefiles" -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" \
+    -DSKIP_BUILD_TEST=1 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
 RUN make -j4
 RUN make install
 
@@ -57,16 +42,15 @@ ADD ./cmake /app/cmake
 WORKDIR /app/build
 
 # Выполним сборку нашего проекта, а также его тестирование
-RUN cmake ..
+RUN cmake -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" ..
 RUN make -j4
 RUN test/unit_tests
 
 # Запуск ---------------------------------------
 
-# В качестве базового образа используем ubuntu:latest
-FROM ubuntu:latest
-RUN apt-get update
-RUN apt-get install -y libpq-dev
+# В качестве базового образа используем ubuntu:plucky
+FROM distro
+
 RUN groupadd -r user && useradd -r -g user user
 USER user
 
@@ -75,6 +59,7 @@ WORKDIR /app
 
 # Скопируем приложение со сборочного контейнера в рабочую директорию
 COPY --from=build /app/build/example/lcloud_sql_discovery_example .
+
 
 # Установим точку входа
 ENTRYPOINT ["./lcloud_sql_discovery_example"]

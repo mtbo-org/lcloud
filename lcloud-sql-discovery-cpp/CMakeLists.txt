@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/Modules/)
 
-option(CodeCoverage "CodeCoverage" ON)
+option(CodeCoverage "CodeCoverage" OFF)
 
 if (CodeCoverage MATCHES ON)
     message(STATUS "Enable Code Coverage")
@@ -27,9 +27,6 @@ add_library(lcloud_sql_discovery
         src/repo/instances.cpp
         src/repo/instances.h
 )
-
-target_compile_options(lcloud_sql_discovery PUBLIC ${RX_COMPILE_OPTIONS})
-target_compile_features(lcloud_sql_discovery PUBLIC ${RX_COMPILE_FEATURES})
 
 target_link_libraries(lcloud_sql_discovery PRIVATE rxcpp libpqxx::pqxx)
 target_include_directories(lcloud_sql_discovery PUBLIC rxcpp libpqxx::pqxx)

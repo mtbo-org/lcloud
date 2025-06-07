@@ -12,7 +12,7 @@ java {
     }
 }
 
-version = '3.1.2-M6'
+version = '3.1.2-M7'
 
 repositories {
     mavenCentral()
@@ -27,6 +27,7 @@ apply plugin: 'java-library'
 
 dependencies {
 
+    implementation project(':lcloud-common')
     compileOnly "io.projectreactor:reactor-core:$reactorVersion"
     testImplementation "io.projectreactor:reactor-test:$reactorVersion"
 

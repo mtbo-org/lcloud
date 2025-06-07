@@ -1,8 +1,13 @@
 /* (C) 2025 Vladimir E. (PROGrand) Koltunov (mtbo.org) */
 
-package org.mtbo.lcloud.discovery.logging;
+package org.mtbo.lcloud.logging;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.logging.Level;
+import java.util.logging.LogManager;
 import java.util.logging.Logger;
 
 /** Logger with filename and line taken from stackTrace */
@@ -69,6 +74,44 @@ public class FileLineLogger {
    */
   public static <T> void pt(@SuppressWarnings("unused") T message) {
     //    System.out.printf("[%1$s] %2$s%n", Thread.currentThread().getName(), message.toString());
+  }
+
+  /**
+   * Init logging from resources
+   *
+   * @param resourceClassLocator class from which module's resources will be taken
+   */
+  public static void init(Class<?> resourceClassLocator) {
+    var logFile =
+        Optional.ofNullable(System.getProperty("java.util.logging.config.file")).orElse("");
+
+    var skipConfig =
+        Optional.ofNullable(System.getProperty("lcloud.skip.logging.config")).orElse("false");
+
+    if (logFile.isEmpty() && !skipConfig.equals("true")) {
+      try (var is =
+          resourceClassLocator.getClassLoader().getResourceAsStream("logging.properties")) {
+        LogManager.getLogManager().readConfiguration(is);
+
+      } catch (Throwable ignored) {
+      }
+    }
+
+    var level = Optional.ofNullable(System.getProperty("org.mtbo.lcloud.discovery.level"));
+
+    level.ifPresent(
+        (String s) -> {
+          try (var stream =
+              new ByteArrayInputStream(
+                  ("org.mtbo.lcloud.discovery.level=" + level.get())
+                      .getBytes(StandardCharsets.UTF_8))) {
+            LogManager.getLogManager()
+                .updateConfiguration(
+                    stream, (String s1) -> (String o, String n) -> n != null ? n : o);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
   }
 
   /**

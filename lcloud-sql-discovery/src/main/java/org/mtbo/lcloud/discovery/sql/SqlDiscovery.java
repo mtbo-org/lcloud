@@ -9,11 +9,12 @@ import io.r2dbc.spi.ConnectionFactories;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.Calendar;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
+import java.util.logging.Level;
 import java.util.stream.Collectors;
+import org.mtbo.lcloud.logging.FileLineLogger;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,6 +22,8 @@ import reactor.core.scheduler.Schedulers;
 
 /** Cloud discovery using db (postgres) */
 public class SqlDiscovery {
+
+  static final FileLineLogger logger = FileLineLogger.getLogger(SqlDiscovery.class.getName());
 
   // "r2dbc:postgresql://user:user@localhost:5444/demo"
   final Config config;
@@ -40,30 +43,46 @@ public class SqlDiscovery {
    * @return True in case of OK
    */
   public Mono<Boolean> initialize() {
-    return createTemplate().flatMap(this::create);
+    return createConnection().flatMap(this::create);
   }
 
   Mono<Boolean> create(R2dbcEntityTemplate template) {
     return template
         .getDatabaseClient()
         .sql(
-"""
-create table if not exists instances
-(
-    id      uuid not null
-        primary key,
-    service varchar(255),
-    name    varchar(255),
-    last    timestamp with time zone default now(),
-    constraint instances_uniq
-        unique (name, service)
-);
-create index if not exists last_index
-    on instances (last);
-                        """)
+            """
+        create table if not exists instances
+        (
+            id      uuid not null primary key,
+            service varchar(255),
+            name    varchar(255),
+            last    timestamp with time zone default now(),
+            constraint instances_uniq
+                unique (name, service)
+        );
+        """)
         .fetch()
         .rowsUpdated()
-        .hasElement();
+        .hasElement()
+        .flatMap(
+            created ->
+                template
+                    .getDatabaseClient()
+                    .sql("create index if not exists last_index on instances (last)")
+                    .fetch()
+                    .all()
+                    .onErrorComplete()
+                    .then(Mono.just(created)))
+        .flatMap(
+            created ->
+                template
+                    .getDatabaseClient()
+                    .sql(
+                        "alter table public.instances alter column id set default gen_random_uuid()")
+                    .fetch()
+                    .all()
+                    .onErrorComplete()
+                    .then(Mono.just(created)));
   }
 
   /**
@@ -72,12 +91,11 @@ create index if not exists last_index
    * @param fallback error fallback, can be used for logging. Provide Mono.empty() to retry
    * @return set of successful flux
    */
-  public Flux<Boolean> ping(Function<Throwable, Mono<Boolean>> fallback) {
-    return createTemplate()
+  public Mono<Boolean> ping(Function<Throwable, Mono<Boolean>> fallback) {
+    return createConnection()
         .flatMap(this::update)
         .onErrorResume(fallback)
-        .flatMap(aBoolean -> Mono.delay(config.updateInterval.dividedBy(2)).map(aLong -> aBoolean))
-        .repeat();
+        .then(Mono.delay(config.updateInterval.dividedBy(2)).then(Mono.just(true)));
   }
 
   /**
@@ -87,23 +105,22 @@ create index if not exists last_index
    * @return set of instances names flux
    */
   public Flux<Set<String>> lookup(Function<Throwable, Mono<Set<String>>> fallback) {
-    return createTemplate()
+    return createConnection()
         .flatMap(this::request)
         .onErrorResume(fallback)
-        .flatMap(strings -> Mono.delay(config.updateInterval).map(aLong -> strings))
+        .flatMap(strings -> Mono.delay(config.updateInterval).then(Mono.just(strings)))
         .repeat();
   }
 
   /**
    * Clean self. Use on service shutdown.
    *
-   * @param fallback error handler
    * @return count of cleaned instances
    */
-  public Mono<Long> clean(Function<Throwable, Mono<Boolean>> fallback) {
+  public Mono<Long> clean() {
     var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
 
-    return createTemplate()
+    return createConnection()
         .flatMap(
             template ->
                 template
@@ -116,8 +133,7 @@ create index if not exists last_index
                                 .is(config.instanceName)
                                 .and("last")
                                 .lessThan(threshold)))
-                    .all())
-        .onErrorComplete();
+                    .all());
   }
 
   /**
@@ -126,41 +142,33 @@ create index if not exists last_index
    * @param fallback error handler
    * @return count of cleaned instances
    */
-  public Mono<Long> cleanAll(Function<Throwable, Mono<Boolean>> fallback) {
-    var threshold = Timestamp.valueOf(LocalDateTime.now().minus(config.updateInterval));
-
-    return createTemplate()
+  public Mono<Long> cleanAll(Function<Throwable, Mono<Long>> fallback) {
+    return createConnection()
         .flatMap(
             template ->
                 template
-                    .delete(Instances.class)
-                    .matching(
-                        query(
-                            where("service")
-                                .is(config.serviceName)
-                                .and("last")
-                                .lessThan(threshold)))
-                    .all())
-        .onErrorComplete();
+                    .getDatabaseClient()
+                    .sql(
+                        "delete from instances where service = :service AND EXTRACT (EPOCH from now() - last) > :interval")
+                    .bind("service", config.serviceName)
+                    .bind("interval", config.updateInterval.toMillis() / 1_000.0)
+                    .fetch()
+                    .rowsUpdated())
+        .onErrorResume(fallback);
   }
 
   private Mono<Set<String>> request(R2dbcEntityTemplate template) {
     return template
         .getDatabaseClient()
         .sql(
-            "select name from instances where service = :service AND last > now() - interval '"
-                + config.updateInterval.toMillis()
-                + " milliseconds'")
+            "select name from instances where service = :service AND EXTRACT (EPOCH from now() - last) < :interval")
         .bind("service", config.serviceName)
+        .bind("interval", config.updateInterval.toMillis() / 1_000.0)
         .fetch()
         .all()
         .subscribeOn(Schedulers.boundedElastic())
         .map(stringObjectMap -> (String) stringObjectMap.get("name"))
-        .collect(Collectors.toSet())
-        .doOnNext(
-            rows ->
-                System.out.printf(
-                    "[%1$tH:%<tM:%<tS.%<tL] Select: %2$s\n", Calendar.getInstance(), rows));
+        .collect(Collectors.toSet());
   }
 
   private Mono<Boolean> update(R2dbcEntityTemplate template) {
@@ -171,18 +179,34 @@ create index if not exists last_index
         .bind("name", config.instanceName)
         .fetch()
         .rowsUpdated()
-        .doOnNext(
-            rows ->
-                System.out.printf(
-                    "[%1$tH:%<tM:%<tS.%<tL] Ping: %2$d\n", Calendar.getInstance(), rows))
-        .flatMap(aLong -> aLong == 1 ? Mono.just(true) : insert(template));
+        .flatMap(
+            aLong -> {
+              if (aLong == 1) {
+                if (logger.isLoggable(Level.FINER)) {
+                  logger.finer(
+                      String.format(
+                          "Ping update: %1$d %2$s %3$s",
+                          aLong, config.serviceName, config.instanceName));
+                }
+              }
+
+              return aLong == 1 ? Mono.just(true) : insert(template);
+            });
   }
 
   private Mono<Boolean> insert(R2dbcEntityTemplate template) {
+    final var value = UUID.randomUUID();
+
+    if (logger.isLoggable(Level.FINER)) {
+      logger.finer(
+          String.format(
+              "Ping insert: %1$s, %2$s, %3$s", value, config.serviceName, config.instanceName));
+    }
+
     return template
         .getDatabaseClient()
         .sql("INSERT INTO instances (id, service, name) VALUES (:id, :service, :name)")
-        .bind("id", UUID.randomUUID())
+        .bind("id", value)
         .bind("service", config.serviceName)
         .bind("name", config.instanceName)
         .fetch()
@@ -190,7 +214,7 @@ create index if not exists last_index
         .map(aLong -> aLong == 1);
   }
 
-  private Mono<R2dbcEntityTemplate> createTemplate() {
+  private Mono<R2dbcEntityTemplate> createConnection() {
     var connectionFactory = ConnectionFactories.get(config.connectionString);
 
     var entityTemplate = new R2dbcEntityTemplate(connectionFactory);
