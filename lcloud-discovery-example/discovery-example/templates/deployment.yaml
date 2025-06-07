@@ -5,7 +5,7 @@ metadata:
   labels:
     {{ include "discovery-example.labels" . | nindent 4 }}
 spec:
-  replicas: 3
+  replicas: 8
   selector:
     matchLabels:
       {{ include "discovery-example.selectorLabels" . | nindent 6 }}

@@ -26,7 +26,7 @@ signing:
   verify: true
 
 distributions:
-  lcloud-sql-discovery:
+  lcloud-common:
     type: SINGLE_JAR
     artifacts:
       - path: build/libs/{{distributionName}}-{{projectVersion}}.jar

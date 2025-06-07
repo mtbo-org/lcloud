@@ -1,4 +1,8 @@
-FROM openjdk:24-jdk-slim AS build
+FROM ubuntu:plucky-20250521
+
+RUN apt-get update && \
+  apt-get install -y openjdk-24-jre-headless
+
 COPY build/libs/lcloud-discovery-example-3.1.2-M7-all.jar demo.jar
 
 RUN mkdir logs
