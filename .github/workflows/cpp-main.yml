@@ -35,6 +35,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set reusable strings
         # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
@@ -49,33 +51,41 @@ jobs:
           sudo apt-get install -y cmake gcc g++ libpq-dev lcov gcovr
 
       - name: RxCpp
-        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/RxCpp/build
+        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/RxCpp
         run: |
-          cmake -G"Unix Makefiles" -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
-              -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
-              -DCMAKE_BUILD_TYPE=Release -DRXCPP_DISABLE_TESTS_AND_EXAMPLES=1 ../projects/CMake
+          mkdir build
+          cd build
+          cmake -G"Unix Makefiles" \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_BUILD_TYPE=Release -DRXCPP_DISABLE_TESTS_AND_EXAMPLES=1 ../projects/CMake
           make -j4
           sudo make install
 
       - name: libpqxx
-        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/libpqxx/build
+        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/libpqxx
         run: |
+          mkdir build
+          cd build
           cmake -G"Unix Makefiles" -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" \
               -DSKIP_BUILD_TEST=1 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
           make -j4
           sudo make install
 
       - name: googletest
-        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/googletest/build
+        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/googletest
         run: |
+          mkdir build
+          cd build
           cmake ..
           make -j4
           sudo make install
 
       - name: Configure CMake
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/googletest
         run: >
-          cmake 
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -S ${{ github.workspace }}/lcloud-sql-discovery-cpp
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
