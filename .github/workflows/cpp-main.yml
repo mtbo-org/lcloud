@@ -24,15 +24,11 @@ jobs:
       matrix:
         os: [ ubuntu-latest ]
         build_type: [ Release ]
-        #        c_compiler: [ gcc, clang ]
         c_compiler: [ gcc ]
         include:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-          - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
 
     steps:
       - uses: actions/checkout@v4
@@ -57,6 +53,8 @@ jobs:
           mkdir build
           cd build
           cmake -G"Unix Makefiles" \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
             -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
             -DCMAKE_BUILD_TYPE=Release -DRXCPP_DISABLE_TESTS_AND_EXAMPLES=1 ../projects/CMake
@@ -68,8 +66,12 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake -G"Unix Makefiles" -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" \
-              -DSKIP_BUILD_TEST=1 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
+          cmake -G"Unix Makefiles" \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+            -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" \
+            -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" \
+            -DSKIP_BUILD_TEST=1 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
           make -j4
           sudo make install
 
@@ -78,7 +80,10 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake ..
+          cmake \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} \
+            -DCMAKE_C_COMPILER=${{ matrix.c_compiler }} \
+            ..
           make -j4
           sudo make install
 
@@ -100,4 +105,4 @@ jobs:
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: |
           cd ./test
-          ./test/unit_tests --gtest_color=no
+          ./unit_tests --gtest_color=no
