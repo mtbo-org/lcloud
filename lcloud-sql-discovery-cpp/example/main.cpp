@@ -3,13 +3,6 @@
 // All rights reserved. Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// export PATH=/c/Program Files/Microsoft Visual
-// Studio/2022/Community/VC/Tools/MSVC/14.39.33519/bin/Hosts64/x64:$PATH
-//-Dlibpqxx_DIR=D:\Programs\libpqxx\lib\cmake\libpqxx
-//-DPostgreSQL_ROOT=D:\Programs\postgres-dev
-//-DGTest_DIR=D:\Programs\googletest\lib\cmake\GTest
-//-Drxcpp_DIR=D:\Programs\RxCpp\share\rxcpp\cmake
-
 #include <discovery.h>
 #include <repo/instances.h>
 
