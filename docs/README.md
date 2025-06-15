@@ -1,16 +1,19 @@
-## Lightweight Cloud Tools
+## Lightweight Cloud
 
-### Branches
+### SQL Discovery
 
-| Branch    | Description                         | Java Version |
-|-----------|-------------------------------------|--------------|
-| 1-plain   | Plain implementation, using Threads | Java 8-      |
-| 2-pure    | Flow implementation                 | Java 9+      |
-| 3-reactor | Reactor implementation              | Java 8+      |
+Enumerate endpoints using PostgreSQL.
 
-### Discovery
+Example:
 
-Enumerate endpoints on LAN.
+```
+lcloud-discovery-example/src/main/java/SqlDiscoveryExample.java
+``` 
+
+
+### Multicast Discovery (Java)
+
+Enumerate endpoints on LAN if available. For Kubernetes in case of Single-Node deployment multicast is enabled. Tested on minikube. For multi-node cluster multicast must be enabled explicitly.
 
 Example:
 
