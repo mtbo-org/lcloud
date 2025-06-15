@@ -45,7 +45,8 @@ jobs:
 
       - name: APT
         run: |
-          apt-get update &&  apt-get install -y cmake gcc g++ libpq-dev lcov gcovr
+          sudo apt-get update
+          sudo apt-get install -y cmake gcc g++ libpq-dev lcov gcovr
 
       - name: RxCpp
         working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/RxCpp/build
@@ -54,7 +55,7 @@ jobs:
               -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
               -DCMAKE_BUILD_TYPE=Release -DRXCPP_DISABLE_TESTS_AND_EXAMPLES=1 ../projects/CMake
           make -j4
-          make install
+          sudo make install
 
       - name: libpqxx
         working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/libpqxx/build
@@ -62,14 +63,14 @@ jobs:
           cmake -G"Unix Makefiles" -DCMAKE_C_FLAGS="-DPQXX_PQ_STATIC=1" -DCMAKE_CXX_FLAGS="-DPQXX_PQ_STATIC=1" \
               -DSKIP_BUILD_TEST=1 -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
           make -j4
-          make install
+          sudo make install
 
       - name: googletest
         working-directory: ${{ github.workspace }}/lcloud-sql-discovery-cpp/googletest/build
         run: |
           cmake ..
           make -j4
-          make install
+          sudo make install
 
       - name: Configure CMake
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
