@@ -16,6 +16,11 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import org.mtbo.lcloud.logging.FileLineLogger;
 import org.springframework.data.r2dbc.core.R2dbcEntityTemplate;
+import org.springframework.r2dbc.connection.R2dbcTransactionManager;
+import org.springframework.r2dbc.core.DatabaseClient;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.reactive.TransactionalOperator;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -171,30 +176,41 @@ public class SqlDiscovery {
         .collect(Collectors.toSet());
   }
 
-  private Mono<Boolean> update(R2dbcEntityTemplate template) {
-    return template
-        .getDatabaseClient()
-        .sql("update instances set last = now() where service=:service and name=:name")
-        .bind("service", config.serviceName)
-        .bind("name", config.instanceName)
-        .fetch()
-        .rowsUpdated()
-        .flatMap(
-            aLong -> {
-              if (aLong == 1) {
-                if (logger.isLoggable(Level.FINER)) {
-                  logger.finer(
-                      String.format(
-                          "Ping update: %1$d %2$s %3$s",
-                          aLong, config.serviceName, config.instanceName));
-                }
-              }
+  public Mono<Boolean> update(R2dbcEntityTemplate template) {
+    var databaseClient = template.getDatabaseClient();
 
-              return aLong == 1 ? Mono.just(true) : insert(template);
-            });
+    var transactionManager = new R2dbcTransactionManager(databaseClient.getConnectionFactory());
+
+    var defaultTransactionDefinition = new DefaultTransactionDefinition();
+    defaultTransactionDefinition.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
+
+    var rxtx = TransactionalOperator.create(transactionManager, defaultTransactionDefinition);
+
+    return rxtx.execute(
+            status ->
+                databaseClient
+                    .sql("update instances set last = now() where service=:service and name=:name")
+                    .bind("service", config.serviceName)
+                    .bind("name", config.instanceName)
+                    .fetch()
+                    .rowsUpdated()
+                    .flatMap(
+                        aLong -> {
+                          if (aLong == 1) {
+                            if (logger.isLoggable(Level.FINER)) {
+                              logger.finer(
+                                  String.format(
+                                      "Ping update: %1$d %2$s %3$s",
+                                      aLong, config.serviceName, config.instanceName));
+                            }
+                          }
+
+                          return aLong == 1 ? Mono.just(true) : insert(databaseClient);
+                        }))
+        .singleOrEmpty();
   }
 
-  private Mono<Boolean> insert(R2dbcEntityTemplate template) {
+  private Mono<Boolean> insert(DatabaseClient databaseClient) {
     final var value = UUID.randomUUID();
 
     if (logger.isLoggable(Level.FINER)) {
@@ -203,8 +219,7 @@ public class SqlDiscovery {
               "Ping insert: %1$s, %2$s, %3$s", value, config.serviceName, config.instanceName));
     }
 
-    return template
-        .getDatabaseClient()
+    return databaseClient
         .sql("INSERT INTO instances (id, service, name) VALUES (:id, :service, :name)")
         .bind("id", value)
         .bind("service", config.serviceName)
